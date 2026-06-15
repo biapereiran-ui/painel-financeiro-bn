@@ -5170,7 +5170,7 @@ function parseBaseDadosFromCSV(arr){
     };
   }
 
-  // ── Dividendos pagos por mês (categoria "Dividendos", agrupado por data de competência) ──
+  // ── Dividendos pagos por mês (categoria "Dividendos", agrupado por data de caixa/pagamento) ──
   const dividendosByMonth={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
@@ -5178,9 +5178,9 @@ function parseBaseDadosFromCSV(arr){
     if(!(row[11]||'').toLowerCase().includes('realizado')) continue;
     const val=parseBRNum(row[13])||0;
     if(!val) continue;
-    const compDate=parseGSDate(row[1]);
-    if(!compDate||isNaN(compDate.getTime())) continue;
-    const ym=`${compDate.getFullYear()}-${String(compDate.getMonth()+1).padStart(2,'0')}`;
+    const caixaDate=parseGSDate(row[0]);
+    if(!caixaDate||isNaN(caixaDate.getTime())) continue;
+    const ym=`${caixaDate.getFullYear()}-${String(caixaDate.getMonth()+1).padStart(2,'0')}`;
     dividendosByMonth[ym]=(dividendosByMonth[ym]||0)+Math.abs(val);
   }
   window.dividendosByMonth=dividendosByMonth;
