@@ -4777,11 +4777,15 @@ function showGSInput(){
   document.getElementById('gs-url-input').focus();
 }
 
+// Chaves de localStorage por página (cada painel/cliente guarda sua própria planilha conectada)
+const GS_ID_KEY='bn_gs_id_'+location.pathname.split('/').pop();
+const CLIENT_NAME_KEY='bn_client_name_'+location.pathname.split('/').pop();
+
 function desconectarGSheets(){
   if(!confirm('Desconectar a planilha atual? Você poderá conectar outra na tela inicial.'))return;
   try{
-    localStorage.removeItem('bn_gs_id');
-    localStorage.removeItem('bn_client_name');
+    localStorage.removeItem(GS_ID_KEY);
+    localStorage.removeItem(CLIENT_NAME_KEY);
   }catch(e){}
   const url=new URL(window.location.href);
   url.searchParams.delete('sheet');
@@ -4794,7 +4798,7 @@ function connectGSheets(){
   if(!raw){document.getElementById('upload-err').textContent='Cole o link da planilha primeiro.';document.getElementById('upload-err').style.display='block';return;}
   const id=extractSheetId(raw);
   if(!id||id.length<10){document.getElementById('upload-err').textContent='Link inválido. Cole o link completo do Google Sheets.';document.getElementById('upload-err').style.display='block';return;}
-  try{localStorage.setItem('bn_gs_id',id);}catch(e){}
+  try{localStorage.setItem(GS_ID_KEY,id);}catch(e){}
   setGSId(id);
   loadFromGSheets();
 }
@@ -4810,7 +4814,7 @@ function connectGSheets(){
       if(id&&id.length>10){setGSId(id);window.addEventListener('DOMContentLoaded',()=>loadFromGSheets());return;}
     }
     // localStorage fallback
-    const saved=localStorage.getItem('bn_gs_id');
+    const saved=localStorage.getItem(GS_ID_KEY);
     if(saved&&saved.length>10){
       setGSId(saved);
       window.addEventListener('DOMContentLoaded',()=>{
@@ -5331,12 +5335,12 @@ async function loadFromGSheets(){
       }
       if(!clientName){
         // fallback: try ?name= param or localStorage
-        try{const p=new URLSearchParams(window.location.search);clientName=p.get('name')||localStorage.getItem('bn_client_name')||'';}catch(e){}
+        try{const p=new URLSearchParams(window.location.search);clientName=p.get('name')||localStorage.getItem(CLIENT_NAME_KEY)||'';}catch(e){}
       }
       if(clientName){
         document.getElementById('h-client').textContent=clientName;
         document.title=clientName+' | Painel Financeiro';
-        try{localStorage.setItem('bn_client_name',clientName);}catch(e){}
+        try{localStorage.setItem(CLIENT_NAME_KEY,clientName);}catch(e){}
       }
       // Logo/ID Visual: procura célula com "logo", e pega URL na célula à direita ou abaixo
       let logoUrl='';
