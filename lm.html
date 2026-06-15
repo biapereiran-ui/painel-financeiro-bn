@@ -3510,7 +3510,7 @@ function renderVCRisco(idx){
   // Badges
   const badgeGap=vcLevel(Math.abs(gapQual??99),.05,.10,.18,true);
   const badgeRunway=vcLevel(runway,6,3,1);
-  const badgeRigidez=vcLevel(d.rigidez,.90,.95,.99,true);
+  const badgeRigidez=vcLevel(d.rigidez,.70,.80,.90,true);
   const badgeBurn=d.burnRate>0?'ruim':'bom';
   // Cards
   const el=document.getElementById('vc-risco-cards');
@@ -3526,7 +3526,7 @@ vcCard({emoji:'🏗️',name:'Rigidez Financeira',val:d.rigidez!=null?pct(d.rigi
   if(runway!=null&&runway<1) ins=`🚨 <strong>Situação crítica:</strong> com o saldo atual, o caixa se esgota em ${runway.toFixed(1)} meses sem faturamento. Prioridade: reforçar receita ou reduzir despesas fixas.`;
   else if(runway!=null&&runway<3) ins=`⚠️ Runway de ${runway.toFixed(1)} meses — atenção. Manter reserva equivalente a pelo menos 3 meses de despesas fixas (${brl(despFixas*3)}).`;
   else if(gapQual!=null&&Math.abs(gapQual)>0.12){const real=pct(d.fcl_pct-gapQual);ins=`💡 O negócio aponta lucro de ${pct(d.ebitda_pct)}, mas gerou ${real} em caixa real. Revisar prazo de cobrança ou verificar retiradas extraordinárias.`;}
-  else if(d.rigidez!=null&&d.rigidez>0.95) ins=`💡 Estrutura rígida: ${pct(d.rigidez)} dos custos são fixos. Uma queda de receita impacta diretamente o resultado — há pouco espaço para ajuste rápido.`;
+  else if(d.rigidez!=null&&d.rigidez>0.90) ins=`💡 Estrutura rígida: ${pct(d.rigidez)} dos custos são fixos. Uma queda de receita impacta diretamente o resultado — há pouco espaço para ajuste rápido.`;
   else ins=`✅ <strong>Riscos sob controle:</strong> runway de ${runway!=null?runway.toFixed(1):'—'} meses, ${d.burnRate>0?'burn rate ativo de '+brl(d.burnRate):'caixa positivo'}${gapQual!=null?' e gap lucro/caixa de '+pct(gapQual):''}. Acompanhar evolução mensal.`;
   vcInsight('vc-risco-insight',ins);
 }
@@ -4076,7 +4076,7 @@ function renderKPIsTab(idx){
     kpiCard('Runway',runway,prevRunway,v=>v!=null?v.toFixed(1)+' meses':'—',{t1:1,t2:3,detail:'Saldo / Despesas fixas mensais'}),
     kpiCard('Burn Rate',burnVal,prevBurnVal,v=>v>0?brl(v):'Nenhum',{inv:true,detail:'Consumo mensal quando FCL < 0',
       ...(burnVal==null?{t1:null,t2:null}:{t1:10000,t2:2000})}),
-    kpiCard('Rigidez Financeira',d.rigidez,p?.rigidez,pfmt,{inv:true,t1:.97,t2:.90,detail:'Custos fixos / Custos totais'}),
+    kpiCard('Rigidez Financeira',d.rigidez,p?.rigidez,pfmt,{inv:true,t1:.90,t2:.80,detail:'Custos fixos / Custos totais'}),
     kpiCard('Capital de Giro',(_sldCurr!=null?_sldCurr-_dfCurr:null),(_sldPrev!=null&&_dfPrev!=null?_sldPrev-_dfPrev:null),brl,{hint:'Saldo de caixa menos as despesas fixas do mês.'}),
     kpiCard('Liquidez Corrente',null,null,v=>v,{unavail:true}),
   ]);
