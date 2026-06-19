@@ -104,7 +104,10 @@ select option{background:#1a2a3a;color:#fff;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
 .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:.75rem;}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:.5rem;}
 .kpi-card{background:var(--white);border:1px solid var(--border);border-radius:10px;padding:1rem;}
+#kpi-cards .kpi-card{padding:.65rem;}
+#kpi-cards .kpi-val{font-size:17px;}
 .kpi-label{font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:500;}
 .kpi-val{font-family:var(--font-title);font-size:20px;font-weight:700;color:var(--dark);margin-bottom:2px;}
 .kpi-sub{font-size:11px;color:var(--lgray);}
@@ -594,7 +597,7 @@ body.sb-collapsed.app-active .sb-open{display:flex;}
     </div>
 
     <!-- KPIs principais -->
-    <div class="grid6" style="margin-bottom:1rem;" id="kpi-cards"></div>
+    <div class="grid7" style="margin-bottom:1rem;" id="kpi-cards"></div>
 
     <!-- Extra KPIs faixa -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem;" id="extra-kpis"></div>
@@ -1585,11 +1588,13 @@ function loadDREGerencial(wb){
   _dreWrap?.querySelector('.period-group-btn')?.classList.add('active'); // "Todos"
   renderDRE();
 
-  // Build Início month buttons (multi-select: começa com último mês com dados)
+  // Build Início month buttons (multi-select: começa com mês vigente)
   const latestWithData=dreAllRows[DRE_IDX.receita]?dreMonths.reduce((best,m,i)=>{
     const v=dreAllRows[DRE_IDX.receita].vals[i]?.val;return(v&&v>0)?i:best;
   },-1):dreMonths.length-1;
-  const defaultIdx=latestWithData>=0?latestWithData:dreMonths.length-1;
+  const _now=new Date();const _nowYM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
+  const _curDreIdx=dreMonths.findIndex(m=>m.date&&`${m.date.getFullYear()}-${String(m.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
+  const defaultIdx=_curDreIdx>=0?_curDreIdx:(latestWithData>=0?latestWithData:dreMonths.length-1);
   buildPeriodBtns('inicio-month-btns',dreMonths,renderInicioFromDRE,renderInicioForPeriod);
   const _inWrap=document.getElementById('inicio-month-btns');
   const _inMBtns=_inWrap?.querySelectorAll('.month-btn');
@@ -1752,7 +1757,9 @@ function loadISF(wb){
 
   // Build month buttons for Faturamento and Caixa tabs (single-select)
   const lastIdx=months.length-1;
-  fatSelIdx=lastIdx; caixaSelIdx=lastIdx;
+  const _cmKpiIdx=months.findIndex(d=>d.date&&`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
+  const defKpiIdx=_cmKpiIdx>=0?_cmKpiIdx:lastIdx;
+  fatSelIdx=defKpiIdx; caixaSelIdx=defKpiIdx;
   buildPeriodBtns('fat-month-btns',months,
     (i)=>{fatSelIdx=i;renderFaturamento(i);},
     renderFaturamentoForPeriod,
@@ -1761,7 +1768,9 @@ function loadISF(wb){
   // Seletor Caixa: usa meses reais da aba Caixa (caixaMonths) como fonte verdade
   const cxMths=window.caixaMonths&&window.caixaMonths.length?window.caixaMonths:months;
   const cxLastIdx=cxMths.length-1;
-  window.caixaSelMonthIdx=cxLastIdx;
+  const _cxCurIdx=cxMths.findIndex(m=>m.year===_now.getFullYear()&&m.month===_now.getMonth());
+  const defCxIdx=_cxCurIdx>=0?_cxCurIdx:cxLastIdx;
+  window.caixaSelMonthIdx=defCxIdx;
   buildPeriodBtns('caixa-month-btns',cxMths,
     (i)=>{
       window.caixaSelMonthIdx=i;
@@ -1774,19 +1783,19 @@ function loadISF(wb){
     renderFluxoCaixaForPeriod,
     false  // single-select
   );
-  // Ativa o último mês por padrão em cada seletor
-  document.querySelector('#fat-month-btns .month-btn:last-child')?.classList.add('active');
-  document.querySelector('#caixa-month-btns .month-btn:last-child')?.classList.add('active');
-  renderFaturamento(lastIdx);
-  renderFluxoCaixa(Math.min(cxLastIdx,kpiHistory.length-1));
+  // Ativa o mês vigente por padrão em cada seletor
+  (document.querySelectorAll('#fat-month-btns .month-btn')[defKpiIdx]||document.querySelector('#fat-month-btns .month-btn:last-child'))?.classList.add('active');
+  (document.querySelectorAll('#caixa-month-btns .month-btn')[defCxIdx]||document.querySelector('#caixa-month-btns .month-btn:last-child'))?.classList.add('active');
+  renderFaturamento(defKpiIdx);
+  renderFluxoCaixa(Math.min(defCxIdx,kpiHistory.length-1));
   // KPIs tab period selector
   buildPeriodBtns('kpis-month-btns',months,(i)=>{renderKPIsTab(i);},null,false);
-  document.querySelector('#kpis-month-btns .month-btn:last-child')?.classList.add('active');
-  renderKPIsTab(lastIdx);
+  (document.querySelectorAll('#kpis-month-btns .month-btn')[defKpiIdx]||document.querySelector('#kpis-month-btns .month-btn:last-child'))?.classList.add('active');
+  renderKPIsTab(defKpiIdx);
   // Cliente period selector
   buildPeriodBtns('vc-month-btns',months,(i)=>{vcSelIdx=i;renderVC(i);},null,false);
-  document.querySelector('#vc-month-btns .month-btn:last-child')?.classList.add('active');
-  renderVC(lastIdx);
+  (document.querySelectorAll('#vc-month-btns .month-btn')[defKpiIdx]||document.querySelector('#vc-month-btns .month-btn:last-child'))?.classList.add('active');
+  renderVC(defKpiIdx);
   recalcISF();
 }
 
@@ -5494,16 +5503,16 @@ async function loadFromGSheets(){
     try{document.getElementById('btn-apresentacao').style.display='block';}catch(e){}
     try{document.getElementById('btn-relatorio').style.display='block';}catch(e){}
     try{document.getElementById('setor-wrap').style.display='block';}catch(e){}
-    // Último mês com dados reais (mesma lógica do loadDREGerencial nativo)
+    // Mês vigente como padrão (fallback: último mês com dados)
     const latestWithData=dreAllRows[DRE_IDX.receita]?dreMonths.reduce((best,m,i)=>{
       const v=dreAllRows[DRE_IDX.receita].vals[i]?.val;return(v&&v>0)?i:best;
     },-1):dreMonths.length-1;
-    // Último mês com lançamentos reais na "Base de dados" (Concentração/Recorrência) —
-    // usado como padrão para que Recebíveis/Estrutura de receitas não fiquem zerados
+    const _now=new Date();const _nowYM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
+    const _curDreIdx=dreMonths.findIndex(m=>m.date&&`${m.date.getFullYear()}-${String(m.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
     const _bdYMs=[...Object.keys(window.concentracaoData||{}),...Object.keys(window.recorrenciaData||{})];
     const _bdLatestYM=_bdYMs.sort().pop();
     const bdLatestIdx=_bdLatestYM?dreMonths.findIndex(m=>m.date&&`${m.date.getFullYear()}-${String(m.date.getMonth()+1).padStart(2,'0')}`===_bdLatestYM):-1;
-    const defaultIdx=bdLatestIdx>=0?bdLatestIdx:(latestWithData>=0?latestWithData:dreMonths.length-1);
+    const defaultIdx=_curDreIdx>=0?_curDreIdx:(bdLatestIdx>=0?bdLatestIdx:(latestWithData>=0?latestWithData:dreMonths.length-1));
     console.log('[GS] defaultIdx=',defaultIdx,'mes=',dreMonths[defaultIdx]?.label);
 
     // Build period buttons — mesma sequência do loadDREGerencial
@@ -5527,10 +5536,14 @@ async function loadFromGSheets(){
 
     if(kpiHistory.length>0){
       const kpiLastIdx=kpiHistory.length-1;
+      const _cmKpiIdx=kpiHistory.findIndex(d=>d.date&&`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
+      const defKpiIdx=_cmKpiIdx>=0?_cmKpiIdx:kpiLastIdx;
 
       // Caixa — cross-ref caixaMonths → kpiHistory por mês/ano (igual loadDREGerencial)
       const cxMths=window.caixaMonths&&window.caixaMonths.length?window.caixaMonths:kpiHistory;
-      window.caixaSelMonthIdx=cxMths.length-1;
+      const _cxCurIdx=cxMths.findIndex(m=>m.year===_now.getFullYear()&&m.month===_now.getMonth());
+      const defCxIdx=_cxCurIdx>=0?_cxCurIdx:cxMths.length-1;
+      window.caixaSelMonthIdx=defCxIdx;
       buildPeriodBtns('caixa-month-btns',cxMths,
         (i)=>{
           window.caixaSelMonthIdx=i;
@@ -5541,24 +5554,24 @@ async function loadFromGSheets(){
         },
         renderFluxoCaixaForPeriod,false
       );
-      document.querySelector('#caixa-month-btns .month-btn:last-child')?.classList.add('active');
-      caixaSelIdx=kpiLastIdx;
+      (document.querySelectorAll('#caixa-month-btns .month-btn')[defCxIdx]||document.querySelector('#caixa-month-btns .month-btn:last-child'))?.classList.add('active');
+      caixaSelIdx=defKpiIdx;
 
       // Faturamento
       buildPeriodBtns('fat-month-btns',kpiHistory,
         (i)=>{fatSelIdx=i;if(typeof renderFaturamento==='function')renderFaturamento(i);},
         renderFaturamentoForPeriod,false
       );
-      document.querySelector('#fat-month-btns .month-btn:last-child')?.classList.add('active');
-      fatSelIdx=kpiLastIdx;
+      (document.querySelectorAll('#fat-month-btns .month-btn')[defKpiIdx]||document.querySelector('#fat-month-btns .month-btn:last-child'))?.classList.add('active');
+      fatSelIdx=defKpiIdx;
 
       // KPIs
       buildPeriodBtns('kpis-month-btns',kpiHistory,(i)=>{renderKPIsTab(i);},null,false);
-      document.querySelector('#kpis-month-btns .month-btn:last-child')?.classList.add('active');
+      (document.querySelectorAll('#kpis-month-btns .month-btn')[defKpiIdx]||document.querySelector('#kpis-month-btns .month-btn:last-child'))?.classList.add('active');
 
-      // Cliente — usa o mesmo padrão de "último mês com dados na Base de dados"
+      // Cliente — mês vigente
       buildPeriodBtns('vc-month-btns',kpiHistory,(i)=>{vcSelIdx=i;renderVC(i);},null,false);
-      vcSelIdx=(bdLatestIdx>=0&&bdLatestIdx<kpiHistory.length)?bdLatestIdx:kpiLastIdx;
+      vcSelIdx=defKpiIdx;
       const _vcBtns=document.querySelectorAll('#vc-month-btns .month-btn');
       (_vcBtns[vcSelIdx]||_vcBtns[_vcBtns.length-1])?.classList.add('active');
 
