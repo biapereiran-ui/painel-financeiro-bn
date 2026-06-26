@@ -22,7 +22,10 @@ body.client-mode #app-view{margin-left:0!important;display:block!important;}
 body.client-mode #tab-cliente{display:block!important;padding:.9rem .9rem 2rem!important;max-width:none!important;}
 body.client-mode .tab-content:not(#tab-cliente){display:none!important;}
 body.client-mode .vc-resumo-row,body.client-mode .vc-charts-row,body.client-mode .vc-cards-grid{grid-template-columns:1fr!important;gap:.75rem!important;}
-body.client-mode .card{padding:1rem!important;}
+body.client-mode #vc-risco>div[style*="grid-template-columns"],body.client-mode #vc-efi>div[style*="grid-template-columns"]{grid-template-columns:1fr!important;}
+body.client-mode #vc-risco-cards,body.client-mode #vc-efi-cards{grid-template-columns:1fr 1fr!important;}
+body.client-mode .card{padding:1rem!important;overflow-x:hidden;}
+body.client-mode #tab-cliente *{max-width:100%;box-sizing:border-box;}
 body.client-mode .kpi-val,body.client-mode .vc-val{font-size:22px!important;}
 body.client-mode #vc-month-btns{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:6px;padding-bottom:4px;}
 body.client-mode #vc-month-btns .month-btn{flex:0 0 auto;padding:10px 16px!important;font-size:13px!important;}
