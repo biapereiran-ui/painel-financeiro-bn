@@ -3978,10 +3978,10 @@ function renderVCLucro(idx){
   const fmtCard=(abs,pctV)=>abs!=null?brl(abs)+(pctV!=null?'<br><span style="font-size:13px;font-weight:500;color:var(--gray);">'+pct(pctV)+'</span>':''):'—';
   const el=document.getElementById('vc-lucro-cards');
   if(el) el.innerHTML=[
-    vcCard({emoji:'⚙️',name:'EBITDA',val:fmtCard(d.ebitda_abs,d.ebitda_pct),badge:badgeEBI,delta:vcDeltaPP(d.ebitda_pct,p?.ebitda_pct),hint:'Resultado operacional antes de impostos e financeiro.'}),
+    vcCard({emoji:'⚙️',name:'EBITDA',val:fmtCard(d.ebitda_abs,d.ebitda_pct),badge:badgeEBI,delta:vcDeltaPP(d.ebitda_pct,p?.ebitda_pct),hint:'Resultado operacional antes das despesas financeiras.'}),
     vcCard({emoji:'💵',name:'Lucro Líquido',val:fmtCard(d.ll_abs,d.ll_pct),badge:badgeLL,delta:vcDeltaPP(d.ll_pct,p?.ll_pct),hint:'Lucro após todos os custos, despesas e impostos.'}),
-    vcCard({emoji:'💰',name:'LLD',val:fmtCard(lld,lldPct),badge:vcLevel(lldPct,.20,.10,.03),delta:vcDeltaPP(lldPct,lldPctP),hint:'Lucro Líquido Disponível — após retiradas e distribuições.'}),
-    vcCard({emoji:'📈',name:'FCL',val:fmtCard(fcl,fclPct),badge:vcLevel(fclPct,.20,.10,.03),delta:vcDeltaPP(fclPct,fclPctP),hint:'Fluxo de Caixa Livre — geração efetiva de caixa.'}),
+    vcCard({emoji:'💰',name:'Lucro líquido disponível',val:fmtCard(lld,lldPct),badge:vcLevel(lldPct,.20,.10,.03),delta:vcDeltaPP(lldPct,lldPctP),hint:'Lucro após investimentos e despesas não operacionais.'}),
+    vcCard({emoji:'📈',name:'Fluxo de caixa livre',val:fmtCard(fcl,fclPct),badge:vcLevel(fclPct,.20,.10,.03),delta:vcDeltaPP(fclPct,fclPctP),hint:'Caixa gerado após dedução de dividendos distribuídos.'}),
     vcCard({emoji:'⚖️',name:'Ponto de Equilíbrio',val:brl(d.pe_abs),badge:badgeMSeg,hint:'Faturamento mínimo para não ter prejuízo. Margem de segurança: '+pct(d.margem_seg)+'.'}),
     vcCard({emoji:'💧',name:'Geração de Caixa Real',val:realCash!=null?brl(realCash):'—',badge:realCash!=null?(realCash>0?'bom':'ruim'):null,delta:vcDelta(realCash,prevRealCash),hint:'Variação efetiva do saldo bancário.'}),
     vcCard({emoji:'🔍',name:'Qualidade do Lucro',val:(gapQual>=0?'+':'')+pct(gapQual),badge:badgeGap,delta:vcDeltaPP(gapQual,prevGap,true),hint:'Gap entre EBITDA% e FCL%. Próximo de 0% é ideal.'}),
