@@ -5017,9 +5017,7 @@ function parseDREFromCSV(arr){
     const vals=dreMonths.map(m=>({val:parseBRNum(row[m.col]),av:parseBRPct(row[m.col+1])}));
     const lo=label.toLowerCase();
     let type='child';
-    if(/^\(\+\) receita bruta/.test(lo))type='header';
-    else if(/^\(-\)/.test(lo))type='header';
-    else if(/^\(\+\/-\)/.test(lo))type='header';
+    if(/^\(\+\)|^\(-\)|^\(\+\/-\)/.test(lo))type='header';
     else if(/^\(=\)/.test(lo))type='ebitda';
     dreAllRows.push({r:r-hRow+3,label,vals,type}); // r=4 para primeira linha (igual Excel)
   }
