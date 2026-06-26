@@ -521,6 +521,16 @@ body.sb-collapsed.app-active .sb-open{display:flex;}
     </div>
     <button class="ger-sub-btn" id="tab-btn-cli" data-tab="cliente" onclick="switchTab('cliente')">Cliente</button>
   </nav>
+  <div id="global-periodo-wrap" style="display:none;padding:8px 16px;display:flex;gap:8px;align-items:center">
+    <label class="sb-foot-label">Período</label>
+    <select id="periodo-granularidade" onchange="onPeriodoGranularidadeChange()">
+      <option value="mes">Mensal</option>
+      <option value="trimestre">Trimestral</option>
+      <option value="semestre">Semestral</option>
+      <option value="ano">Anual</option>
+    </select>
+    <select id="periodo-valor" onchange="onPeriodoValorChange()"></select>
+  </div>
   <div class="sb-foot">
     <div id="setor-wrap" style="display:none">
       <label class="sb-foot-label">Setor</label>
@@ -2904,6 +2914,67 @@ function buildPeriodBtns(containerId,monthData,renderOne,renderPeriod,multiSelec
       }
     };
     container.appendChild(b);
+  });
+}
+
+// ══════════════════════════════════════════════
+// SELETOR ÚNICO DE PERÍODO (Mensal/Trimestral/Semestral/Anual)
+// Substitui os botões de mês espalhados por seção (Início, DRE,
+// Faturamento, Insights, Fluxo de Caixa) por um único controle.
+// KPIs e Cliente mantêm seletor de mês único próprio (sem alteração) —
+// renderKPIsTab/renderVC não suportam agregação multi-mês.
+// ══════════════════════════════════════════════
+let PERIOD_SECTIONS=[];
+
+function registerPeriodSection(monthData,renderOne,renderPeriod){
+  PERIOD_SECTIONS.push({monthData,renderOne,renderPeriod});
+}
+
+function periodKeyFor(date,granularidade){
+  if(!date)return null;
+  const y=date.getFullYear(),m=date.getMonth();
+  if(granularidade==='trimestre')return `${y}-Q${Math.floor(m/3)+1}`;
+  if(granularidade==='semestre')return `${y}-S${Math.floor(m/6)+1}`;
+  if(granularidade==='ano')return `${y}`;
+  return `${y}-${m}`; // mes
+}
+
+function periodLabelFor(key,granularidade){
+  if(granularidade==='trimestre'){const[y,q]=key.split('-');return `${q} ${y}`;}
+  if(granularidade==='semestre'){const[y,s]=key.split('-');return `${s==='S1'?'1º':'2º'} semestre ${y}`;}
+  if(granularidade==='ano')return key;
+  const[y,m]=key.split('-');
+  const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${MESES[+m]}/${y}`;
+}
+
+function buildPeriodoValorOptions(){
+  const gran=document.getElementById('periodo-granularidade').value;
+  const sel=document.getElementById('periodo-valor');
+  const keys=[...new Set(dreMonths.map(m=>periodKeyFor(m.date,gran)).filter(Boolean))];
+  sel.innerHTML='';
+  keys.forEach(k=>{
+    const opt=document.createElement('option');
+    opt.value=k;opt.textContent=periodLabelFor(k,gran);
+    sel.appendChild(opt);
+  });
+  if(keys.length)sel.value=keys[keys.length-1]; // período mais recente por padrão
+}
+
+function onPeriodoGranularidadeChange(){
+  buildPeriodoValorOptions();
+  onPeriodoValorChange();
+}
+
+function onPeriodoValorChange(){
+  const gran=document.getElementById('periodo-granularidade').value;
+  const key=document.getElementById('periodo-valor').value;
+  if(!key)return;
+  PERIOD_SECTIONS.forEach(({monthData,renderOne,renderPeriod})=>{
+    const idxs=monthData.map((m,i)=>periodKeyFor(m.date,gran)===key?i:-1).filter(i=>i>=0);
+    if(!idxs.length)return;
+    if(idxs.length===1)renderOne(idxs[0]);
+    else if(renderPeriod)renderPeriod(idxs);
   });
 }
 
@@ -5459,6 +5530,37 @@ async function loadFromGSheets(){
       );
       (document.querySelectorAll('#fat-month-btns .month-btn')[defKpiIdx]||document.querySelector('#fat-month-btns .month-btn:last-child'))?.classList.add('active');
       fatSelIdx=defKpiIdx;
+
+      // Seletor único de período — registra as seções que suportam agregação
+      // multi-mês e oculta os botões de mês individuais (substituídos pelo
+      // seletor único). KPIs e Cliente (linhas seguintes) não são tocados.
+      PERIOD_SECTIONS=[];
+      registerPeriodSection(dreMonths,renderInicioFromDRE,renderInicioForPeriod);
+      if(typeof generateInsights==='function'){
+        registerPeriodSection(dreMonths,generateInsights,(idxs)=>generateInsights(idxs[idxs.length-1]));
+      }
+      registerPeriodSection(dreMonths,
+        (i)=>{dreSelMonths=new Set([i]);if(typeof renderDRE==='function')renderDRE();},
+        (idxs)=>{dreSelMonths=new Set(idxs);if(typeof renderDRE==='function')renderDRE();}
+      );
+      registerPeriodSection(kpiHistory,
+        (i)=>{fatSelIdx=i;if(typeof renderFaturamento==='function')renderFaturamento(i);},
+        renderFaturamentoForPeriod
+      );
+      registerPeriodSection(cxMths,
+        (i)=>{
+          window.caixaSelMonthIdx=i;
+          const cm=cxMths[i];
+          const kIdx=kpiHistory.findIndex(d=>d.date&&d.date.getFullYear()===cm.year&&d.date.getMonth()===cm.month);
+          caixaSelIdx=kIdx>=0?kIdx:Math.min(i,kpiHistory.length-1);
+          if(typeof renderFluxoCaixa==='function')renderFluxoCaixa(caixaSelIdx);
+        },
+        renderFluxoCaixaForPeriod
+      );
+      ['inicio-month-btns','insights-month-btns','dre-month-btns','fat-month-btns','caixa-month-btns']
+        .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+      document.getElementById('global-periodo-wrap').style.display='flex';
+      buildPeriodoValorOptions();
 
       // KPIs
       buildPeriodBtns('kpis-month-btns',kpiHistory,(i)=>{renderKPIsTab(i);},null,false);
