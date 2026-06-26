@@ -1,0 +1,15 @@
+{
+  "name": "LM Consultoria — Painel do Cliente",
+  "short_name": "LM Painel",
+  "description": "Acompanhe os indicadores financeiros da LM Consultoria",
+  "start_url": "./cliente-lm.html?sheet=1m3Wu5kFV6bp2ZVpVVDk_7UyXhyf8jDivq_2Airc15mU",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#23262A",
+  "theme_color": "#0F6B50",
+  "icons": [
+    { "src": "icons/lm-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/lm-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
