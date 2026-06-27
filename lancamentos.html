@@ -223,6 +223,75 @@ async function selecionarCliente(chave){
   mostrarTela('tela-form');
 }
 
+// ── Fila local (offline) + histórico ────────────────────────────
+function lerFilaLocal(){
+  try { return JSON.parse(localStorage.getItem('pwa_fila') || '[]'); }
+  catch (e) { return []; }
+}
+function salvarFilaLocal(fila){
+  localStorage.setItem('pwa_fila', JSON.stringify(fila));
+}
+
+function renderHistorico(){
+  const fila = lerFilaLocal();
+  let painel = $('historico-painel');
+  if (!painel) {
+    painel = document.createElement('div');
+    painel.id = 'historico-painel';
+    painel.style.marginTop = '20px';
+    painel.style.fontSize = '13px';
+    $('form-feedback').insertAdjacentElement('afterend', painel);
+  }
+  if (!fila.length) { painel.innerHTML = ''; return; }
+  const itens = fila.slice(-10).reverse().map(item=>{
+    const status = item.enviado ? '✓ enviado' : '⏳ pendente (sem internet)';
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">${item.payload.descricao || '(sem descrição)'} — R$ ${(item.payload.valorReal || item.payload.valorPrevisto).toFixed(2)} — ${status}</div>`;
+  }).join('');
+  painel.innerHTML = '<strong>Últimos lançamentos deste aparelho</strong>' + itens;
+}
+
+async function salvarLancamento(){
+  const fb = $('form-feedback');
+  fb.className = 'feedback';
+  fb.style.display = 'none';
+  const payload = montarPayload();
+  const webAppUrl = CLIENTES[clienteAtual].webAppUrl;
+  const fila = lerFilaLocal();
+  const item = { payload, webAppUrl, enviado: false, criadoEm: Date.now() };
+  fila.push(item);
+  salvarFilaLocal(fila);
+
+  try {
+    await enviarLancamento(payload, webAppUrl);
+    item.enviado = true;
+    salvarFilaLocal(fila);
+    fb.textContent = 'Salvo na fila ✓ — pode levar alguns minutos até aparecer na planilha.';
+    fb.className = 'feedback ok';
+    limparFormulario();
+  } catch (e) {
+    fb.textContent = 'Sem conexão agora — guardado neste aparelho, será enviado quando a internet voltar.';
+    fb.className = 'feedback ok';
+    limparFormulario();
+  }
+  renderHistorico();
+}
+
+async function tentarReenviarFila(){
+  const fila = lerFilaLocal();
+  let mudou = false;
+  for (const item of fila) {
+    if (item.enviado) continue;
+    try {
+      await enviarLancamento(item.payload, item.webAppUrl);
+      item.enviado = true;
+      mudou = true;
+    } catch (e) { /* ainda sem conexão, tenta de novo na próxima */ }
+  }
+  if (mudou) { salvarFilaLocal(fila); renderHistorico(); }
+}
+
+window.addEventListener('online', tentarReenviarFila);
+
 // Inicialização: se já estava logado e com cliente escolhido, pula direto pro formulário.
 window.addEventListener('DOMContentLoaded', ()=>{
   if (localStorage.getItem('pwa_logado') === '1') {
@@ -231,6 +300,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
   const hoje = new Date().toISOString().slice(0,10);
   $('f-data-caixa').value = hoje;
   $('f-data-comp').value = hoje;
+  renderHistorico();
+  tentarReenviarFila();
 });
 
 function onTipoChange(){
@@ -330,20 +401,10 @@ function limparFormulario(){
   onTipoContaChange();
 }
 
-async function salvarLancamento(){
-  const fb = $('form-feedback');
-  fb.className = 'feedback';
-  fb.style.display = 'none';
-  const payload = montarPayload();
-  try {
-    await enviarLancamento(payload, CLIENTES[clienteAtual].webAppUrl);
-    fb.textContent = 'Salvo na fila ✓ — pode levar alguns minutos até aparecer na planilha.';
-    fb.className = 'feedback ok';
-    limparFormulario();
-  } catch (e) {
-    fb.textContent = 'Erro ao enviar: ' + e.message;
-    fb.className = 'feedback erro-fb';
-  }
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw-lancamentos.js').catch(() => {});
+  });
 }
 </script>
 </body>
