@@ -4775,22 +4775,22 @@ function buildDreSimplesFromDRE(idx){
   const mC=dreMonths[idx],mP=prevIdx!==null?dreMonths[prevIdx]:null;
   const ML=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const fmt=m=>m?.date?ML[m.date.getMonth()]+'/de '+String(m.date.getFullYear()).slice(-2):'—';
-  const custosOp=(g(10,idx)||0)+(g(21,idx)||0)+(g(27,idx)||0);
-  const custosOpP=prevIdx!==null?(g(10,prevIdx)||0)+(g(21,prevIdx)||0)+(g(27,prevIdx)||0):null;
+  const custosOp=(g(DRE_IDX.adm,idx)||0)+(g(DRE_IDX.com,idx)||0)+(g(DRE_IDX.rem,idx)||0);
+  const custosOpP=prevIdx!==null?(g(DRE_IDX.adm,prevIdx)||0)+(g(DRE_IDX.com,prevIdx)||0)+(g(DRE_IDX.rem,prevIdx)||0):null;
   window.dreSimplesData={
     months:[{date:mC?.date,label:fmt(mC)},{date:mP?.date,label:fmt(mP)}],
     rows:[
-      {label:'Receita Bruta',vals:[g(0,idx),g(0,prevIdx)],type:'bold'},
-      {label:'Deduções',vals:[g(4,idx),g(4,prevIdx)],type:'ded'},
-      {label:'Margem de contribuição',vals:[g(9,idx),g(9,prevIdx)],type:'highlight'},
+      {label:'Receita Bruta',vals:[g(DRE_IDX.receita,idx),g(DRE_IDX.receita,prevIdx)],type:'bold'},
+      {label:'Deduções',vals:[g(DRE_IDX.ded,idx),g(DRE_IDX.ded,prevIdx)],type:'ded'},
+      {label:'Margem de contribuição',vals:[g(DRE_IDX.mc,idx),g(DRE_IDX.mc,prevIdx)],type:'highlight'},
       {label:'Custos da operação',vals:[custosOp,custosOpP],type:'bold'},
-      {label:'* Remunerações',vals:[g(27,idx),g(27,prevIdx)],type:'child'},
-      {label:'* Administrativas',vals:[g(10,idx),g(10,prevIdx)],type:'child'},
-      {label:'* Marketing',vals:[g(21,idx),g(21,prevIdx)],type:'child'},
-      {label:'EBITDA',vals:[g(30,idx),g(30,prevIdx)],type:'highlight'},
-      {label:'Lucro Líquido',vals:[g(40,idx),g(40,prevIdx)],type:'highlight'},
-      {label:'Lucro líquido disponível',vals:[g(43,idx),g(43,prevIdx)],type:'highlight'},
-      {label:'Fluxo de caixa livre',vals:[g(45,idx),g(45,prevIdx)],type:'highlight'},
+      {label:'* Remunerações',vals:[g(DRE_IDX.rem,idx),g(DRE_IDX.rem,prevIdx)],type:'child'},
+      {label:'* Administrativas',vals:[g(DRE_IDX.adm,idx),g(DRE_IDX.adm,prevIdx)],type:'child'},
+      {label:'* Marketing',vals:[g(DRE_IDX.com,idx),g(DRE_IDX.com,prevIdx)],type:'child'},
+      {label:'EBITDA',vals:[g(DRE_IDX.ebit,idx),g(DRE_IDX.ebit,prevIdx)],type:'highlight'},
+      {label:'Lucro Líquido',vals:[g(DRE_IDX.ll,idx),g(DRE_IDX.ll,prevIdx)],type:'highlight'},
+      {label:'Lucro líquido disponível',vals:[g(DRE_IDX.lld,idx),g(DRE_IDX.lld,prevIdx)],type:'highlight'},
+      {label:'Fluxo de caixa livre',vals:[g(DRE_IDX.fcl,idx),g(DRE_IDX.fcl,prevIdx)],type:'highlight'},
     ]
   };
 }
