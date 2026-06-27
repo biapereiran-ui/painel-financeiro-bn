@@ -380,6 +380,10 @@ function montarPayload(){
 // Envia direto ao Web App. Lança o erro pra quem chamar decidir o que
 // fazer (Task 3 usa isso pra cair na fila local quando offline).
 async function enviarLancamento(payload, webAppUrl){
+  // Sem header Content-Type de propósito: isso dispararia um preflight
+  // CORS que o Web App do Apps Script não responde, e o envio falharia
+  // silenciosamente. O corpo chega como texto simples e o doPost ainda
+  // lê e faz JSON.parse normalmente em e.postData.contents.
   const res = await fetch(webAppUrl, {
     method: 'POST',
     body: JSON.stringify(payload)
