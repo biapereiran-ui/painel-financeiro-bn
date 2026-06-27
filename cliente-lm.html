@@ -1378,18 +1378,16 @@ function renderInicioFromDRE(idx){
   const g=(ri)=>dreAllRows[ri]?.vals[idx]?.val??null;
   const gp=(ri)=>prev!==null?(dreAllRows[ri]?.vals[prev]?.val??null):null;
   const gav=(ri)=>dreAllRows[ri]?.vals[idx]?.av??null;
-  // Row indices in dreAllRows (r-4, 0-based from Excel row 4):
-  // 0=Receita bruta, 4=Deduções, 9=Margem contrib, 10=Desp admin,
-  // 21=Desp comercial, 27=Remuneração, 30=EBIT, 31=Rec fin, 34=Desp fin, 40=LL, 43=LLD, 45=FCL
-  const fat=g(0),fatP=gp(0);
-  const ded=g(4),adm=g(10),com=g(21),rem=g(27),dfin=g(34);
-  const dedP=gp(4),admP=gp(10),comP=gp(21),remP=gp(27),dfinP=gp(34);
+  // Índices localizados por rótulo em DRE_IDX (resistente a linhas adicionadas/removidas na planilha)
+  const fat=g(DRE_IDX.receita),fatP=gp(DRE_IDX.receita);
+  const ded=g(DRE_IDX.ded),adm=g(DRE_IDX.adm),com=g(DRE_IDX.com),rem=g(DRE_IDX.rem),dfin=g(DRE_IDX.dfin);
+  const dedP=gp(DRE_IDX.ded),admP=gp(DRE_IDX.adm),comP=gp(DRE_IDX.com),remP=gp(DRE_IDX.rem),dfinP=gp(DRE_IDX.dfin);
   const pagTot=(ded||0)+(adm||0)+(com||0)+(rem||0)+(dfin||0);
   const pagTotP=(dedP||0)+(admP||0)+(comP||0)+(remP||0)+(dfinP||0);
-  let ebit=g(30),ebitP=gp(30),ebitAV=gav(30);
-  let ll=g(40),llP=gp(40),llAV=gav(40);
-  let fcl=g(45),fclP=gp(45);
-  const mc=g(9),mcP=gp(9);
+  let ebit=g(DRE_IDX.ebit),ebitP=gp(DRE_IDX.ebit),ebitAV=gav(DRE_IDX.ebit);
+  let ll=g(DRE_IDX.ll),llP=gp(DRE_IDX.ll),llAV=gav(DRE_IDX.ll);
+  let fcl=g(DRE_IDX.fcl),fclP=gp(DRE_IDX.fcl);
+  const mc=g(DRE_IDX.mc),mcP=gp(DRE_IDX.mc);
   // Fallback: células de fórmula podem ter cache vazio (EOCD repair)
   // Usar kpiHistory (aba KPIs - valores digitados diretamente)
   const _kpiAt=(mIdx)=>{
@@ -1477,26 +1475,25 @@ function renderInicioFromDRE(idx){
 
   // DRE simplificado — leitura dinâmica do DRE Gerencial com índices corretos
   // Estrutura espelha exatamente a aba Relatório (rows 15-25):
-  // Receita Bruta(0), Deduções(4), MC(9), Custos op(10+21+27), Remunerações(27),
-  // Administrativas(10), Marketing(21), EBITDA(30), LL(40), LLD(43), FCL(45)
+  // DRE simplificado — leitura dinâmica do DRE Gerencial via DRE_IDX (por rótulo)
   {
-    const geff=(ri)=>{const v=g(ri);if(ri===30)return(v!=null&&v!==0)?v:ebit;if(ri===40)return(v!=null&&v!==0)?v:ll;if(ri===45)return(v!=null&&v!==0)?v:fcl;return v;};
-    const geffp=(ri)=>{const v=gp(ri);if(ri===30)return(v!=null&&v!==0)?v:ebitP;if(ri===40)return(v!=null&&v!==0)?v:llP;if(ri===45)return(v!=null&&v!==0)?v:fclP;return v;};
+    const geff=(ri)=>{const v=g(ri);if(ri===DRE_IDX.ebit)return(v!=null&&v!==0)?v:ebit;if(ri===DRE_IDX.ll)return(v!=null&&v!==0)?v:ll;if(ri===DRE_IDX.fcl)return(v!=null&&v!==0)?v:fcl;return v;};
+    const geffp=(ri)=>{const v=gp(ri);if(ri===DRE_IDX.ebit)return(v!=null&&v!==0)?v:ebitP;if(ri===DRE_IDX.ll)return(v!=null&&v!==0)?v:llP;if(ri===DRE_IDX.fcl)return(v!=null&&v!==0)?v:fclP;return v;};
     // Linha computada "Custos da operação" = Adm + Marketing + Remuneração
-    const custosOp=(geff(10)||0)+(geff(21)||0)+(geff(27)||0);
-    const custosOpP=(geffp(10)||0)+(geffp(21)||0)+(geffp(27)||0);
+    const custosOp=(geff(DRE_IDX.adm)||0)+(geff(DRE_IDX.com)||0)+(geff(DRE_IDX.rem)||0);
+    const custosOpP=(geffp(DRE_IDX.adm)||0)+(geffp(DRE_IDX.com)||0)+(geffp(DRE_IDX.rem)||0);
     const dreRows=[
-      {label:'Receita Bruta',      cur:geff(0),  prv:geffp(0),  type:'bold'},
-      {label:'Deduções',           cur:geff(4),  prv:geffp(4),  type:'child'},
-      {label:'Margem de contribuição', cur:geff(9), prv:geffp(9), type:'result'},
+      {label:'Receita Bruta',      cur:geff(DRE_IDX.receita),  prv:geffp(DRE_IDX.receita),  type:'bold'},
+      {label:'Deduções',           cur:geff(DRE_IDX.ded),  prv:geffp(DRE_IDX.ded),  type:'child'},
+      {label:'Margem de contribuição', cur:geff(DRE_IDX.mc), prv:geffp(DRE_IDX.mc), type:'result'},
       {label:'Custos da operação', cur:custosOp, prv:custosOpP, type:'bold'},
-      {label:'* Remunerações',     cur:geff(27), prv:geffp(27), type:'child'},
-      {label:'* Administrativas',  cur:geff(10), prv:geffp(10), type:'child'},
-      {label:'* Marketing',        cur:geff(21), prv:geffp(21), type:'child'},
-      {label:'EBITDA',             cur:geff(30), prv:geffp(30), type:'ebitda'},
-      {label:'Lucro Líquido',      cur:geff(40), prv:geffp(40), type:'result'},
-      {label:'Lucro líquido disponível', cur:geff(43), prv:geffp(43), type:'result'},
-      {label:'Fluxo de caixa livre', cur:geff(45), prv:geffp(45), type:'result'},
+      {label:'* Remunerações',     cur:geff(DRE_IDX.rem), prv:geffp(DRE_IDX.rem), type:'child'},
+      {label:'* Administrativas',  cur:geff(DRE_IDX.adm), prv:geffp(DRE_IDX.adm), type:'child'},
+      {label:'* Marketing',        cur:geff(DRE_IDX.com), prv:geffp(DRE_IDX.com), type:'child'},
+      {label:'EBITDA',             cur:geff(DRE_IDX.ebit), prv:geffp(DRE_IDX.ebit), type:'ebitda'},
+      {label:'Lucro Líquido',      cur:geff(DRE_IDX.ll), prv:geffp(DRE_IDX.ll), type:'result'},
+      {label:'Lucro líquido disponível', cur:geff(DRE_IDX.lld), prv:geffp(DRE_IDX.lld), type:'result'},
+      {label:'Fluxo de caixa livre', cur:geff(DRE_IDX.fcl), prv:geffp(DRE_IDX.fcl), type:'result'},
     ];
     let dreHtml=`<table class="dre-table" style="width:100%;">
       <thead><tr>
@@ -1547,6 +1544,28 @@ const DRE_TYPES={
 let dreMonths=[];
 let dreAllRows=[];
 let dreSelMonths=new Set();
+let DRE_IDX={};
+
+// Localiza o índice de cada linha-chave da DRE pelo RÓTULO (não pela posição),
+// para resistir a linhas adicionadas/removidas/reordenadas na planilha.
+function buildDreIndex(){
+  const find=(re)=>dreAllRows.findIndex(r=>re.test(String(r.label||'').trim()));
+  DRE_IDX={
+    receita: find(/^\(\+\)\s*receita bruta/i),
+    ded:     find(/^\(-\)\s*deduç/i),
+    mc:      find(/margem de contribuição/i),
+    adm:     find(/^\(-\)\s*despesas administrativas/i),
+    com:     find(/^\(-\)\s*despesas comerciais/i),
+    rem:     find(/^\(-\)\s*remuneração/i),
+    rfin:    find(/^\(\+\)\s*receitas financeiras/i),
+    dfin:    find(/^\(-\)\s*de?spesas financeiras/i), // tolera typo "Depesas"
+    ebit:    find(/lucro operacional|ebit/i),
+    ll:      find(/lucro líquido\s*\(rf\)/i),
+    lld:     find(/lucro líquido disponível/i),
+    fcl:     find(/fluxo de caixa livre/i),
+    div:     find(/^dividendos$/i),
+  };
+}
 
 function loadDREGerencial(wb){
   const wsName=wb.SheetNames.find(s=>s.toLowerCase().includes('dre'));
@@ -1570,6 +1589,7 @@ function loadDREGerencial(wb){
     const vals=dreMonths.map(m=>({val:cv(ws,r,m.col),av:cv(ws,r,m.col+1)}));
     dreAllRows.push({r,label,vals,type:DRE_TYPES[r]||'child'});
   }
+  buildDreIndex();
   // Build month buttons — DRE (multi-select: todos os meses ativos por padrão)
   buildPeriodBtns('dre-month-btns',dreMonths,
     (i)=>{dreSelMonths=new Set([i]);renderDRE();},
@@ -1582,8 +1602,8 @@ function loadDREGerencial(wb){
   renderDRE();
 
   // Build Início month buttons (multi-select: começa com mês vigente)
-  const latestWithData=dreAllRows[0]?dreMonths.reduce((best,m,i)=>{
-    const v=dreAllRows[0].vals[i]?.val;return(v&&v>0)?i:best;
+  const latestWithData=dreAllRows[DRE_IDX.receita]?dreMonths.reduce((best,m,i)=>{
+    const v=dreAllRows[DRE_IDX.receita].vals[i]?.val;return(v&&v>0)?i:best;
   },-1):dreMonths.length-1;
   const _now=new Date();const _nowYM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
   const _curDreIdx=dreMonths.findIndex(m=>m.date&&`${m.date.getFullYear()}-${String(m.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
@@ -1912,7 +1932,7 @@ function generateInsights(forceIdx){
 
   // Identify latest 3 months with data
   const validIdxs=dreMonths.map((_,i)=>{
-    const v=dreAllRows[0]?.vals[i]?.val;return v&&v>0?i:-1;
+    const v=dreAllRows[DRE_IDX.receita]?.vals[i]?.val;return v&&v>0?i:-1;
   }).filter(i=>i>=0);
   if(!validIdxs.length){return;}
 
@@ -1924,14 +1944,14 @@ function generateInsights(forceIdx){
   const gav=(ri,idx)=>dreAllRows[ri]?.vals[idx]?.av??null;
 
   // Current month data
-  const fat=gv(0,cur),fatP=prev>=0?gv(0,prev):null,fatP2=prev2>=0?gv(0,prev2):null;
-  const ebit=gv(30,cur),ebitP=prev>=0?gv(30,prev):null;
-  const ebitAV=gav(30,cur)||0,ebitAVP=prev>=0?(gav(30,prev)||0):null;
-  const llAV=gav(40,cur)||0,llAVP=prev>=0?(gav(40,prev)||0):null;
-  const fcl=gv(45,cur),fclP=prev>=0?gv(45,prev):null;
+  const fat=gv(DRE_IDX.receita,cur),fatP=prev>=0?gv(DRE_IDX.receita,prev):null,fatP2=prev2>=0?gv(DRE_IDX.receita,prev2):null;
+  const ebit=gv(DRE_IDX.ebit,cur),ebitP=prev>=0?gv(DRE_IDX.ebit,prev):null;
+  const ebitAV=gav(DRE_IDX.ebit,cur)||0,ebitAVP=prev>=0?(gav(DRE_IDX.ebit,prev)||0):null;
+  const llAV=gav(DRE_IDX.ll,cur)||0,llAVP=prev>=0?(gav(DRE_IDX.ll,prev)||0):null;
+  const fcl=gv(DRE_IDX.fcl,cur),fclP=prev>=0?gv(DRE_IDX.fcl,prev):null;
   const fclAV=fat&&fcl?fcl/fat:0;
-  const adm=gv(10,cur),com=gv(21,cur),rem=gv(27,cur);
-  const admAV=gav(10,cur)||0,comAV=gav(21,cur)||0,remAV=gav(27,cur)||0;
+  const adm=gv(DRE_IDX.adm,cur),com=gv(DRE_IDX.com,cur),rem=gv(DRE_IDX.rem,cur);
+  const admAV=gav(DRE_IDX.adm,cur)||0,comAV=gav(DRE_IDX.com,cur)||0,remAV=gav(DRE_IDX.rem,cur)||0;
   const dfixasAV=Math.abs(admAV)+Math.abs(comAV)+Math.abs(remAV);
   const folhaAV=Math.abs(remAV);
 
@@ -2796,9 +2816,9 @@ function renderDREWaterfall(idx){
   const canvas=document.getElementById('dre-waterfall-chart');
   if(!canvas||!dreAllRows.length) return;
   const g=(ri)=>dreAllRows[ri]?.vals[idx]?.val??null;
-  const fat=g(0)||0,ded=g(4)||0,mc=g(9)||0;
-  const adm=g(10)||0,com=g(21)||0,rem=g(27)||0,dfin=g(34)||0,rfin=g(31)||0;
-  let ebit=g(30)||0,ll=g(40)||0,fcl=g(45)||0;
+  const fat=g(DRE_IDX.receita)||0,ded=g(DRE_IDX.ded)||0,mc=g(DRE_IDX.mc)||0;
+  const adm=g(DRE_IDX.adm)||0,com=g(DRE_IDX.com)||0,rem=g(DRE_IDX.rem)||0,dfin=g(DRE_IDX.dfin)||0,rfin=g(DRE_IDX.rfin)||0;
+  let ebit=g(DRE_IDX.ebit)||0,ll=g(DRE_IDX.ll)||0,fcl=g(DRE_IDX.fcl)||0;
   if((!ebit||!ll||!fcl)&&dreMonths[idx]?.date){
     const sd=dreMonths[idx].date;
     const kW=kpiHistory.find(k=>k.date&&k.date.getMonth()===sd.getMonth()&&k.date.getFullYear()===sd.getFullYear());
@@ -3014,10 +3034,10 @@ function renderInicioForPeriod(indices){
   if(!indices||!indices.length) return;
   if(indices.length===1){renderInicioFromDRE(indices[0]);return;}
   const sumG=(ri)=>indices.reduce((s,i)=>{const v=dreAllRows[ri]?.vals[i]?.val;return s+(v||0);},0);
-  const fat=sumG(0),ded=sumG(4),mc=sumG(9);
-  const adm=sumG(10),com=sumG(21),rem=sumG(27),dfin=sumG(34),rfin=sumG(31);
+  const fat=sumG(DRE_IDX.receita),ded=sumG(DRE_IDX.ded),mc=sumG(DRE_IDX.mc);
+  const adm=sumG(DRE_IDX.adm),com=sumG(DRE_IDX.com),rem=sumG(DRE_IDX.rem),dfin=sumG(DRE_IDX.dfin),rfin=sumG(DRE_IDX.rfin);
   const pagTot=ded+adm+com+rem+dfin;
-  let ebit=sumG(30),ll=sumG(40),fcl=sumG(45);
+  let ebit=sumG(DRE_IDX.ebit),ll=sumG(DRE_IDX.ll),fcl=sumG(DRE_IDX.fcl);
   // Fallback: somar kpiHistory quando fórmulas sem cache
   const kpiSumFb=(field)=>indices.reduce((s,i)=>{
     const d=dreMonths[i]?.date;if(!d) return s;
@@ -3048,20 +3068,20 @@ function renderInicioForPeriod(indices){
     </div>`;
   });
   // DRE simplificado — leitura dinâmica acumulada do período
-  const sumGeff=(ri)=>{const v=sumG(ri);if(ri===30)return v||ebit;if(ri===40)return v||ll;if(ri===45)return v||fcl;return v;};
-  const custosOpP2=(sumGeff(10)||0)+(sumGeff(21)||0)+(sumGeff(27)||0);
+  const sumGeff=(ri)=>{const v=sumG(ri);if(ri===DRE_IDX.ebit)return v||ebit;if(ri===DRE_IDX.ll)return v||ll;if(ri===DRE_IDX.fcl)return v||fcl;return v;};
+  const custosOpP2=(sumGeff(DRE_IDX.adm)||0)+(sumGeff(DRE_IDX.com)||0)+(sumGeff(DRE_IDX.rem)||0);
   const dreRowsP=[
-    {label:'Receita Bruta',           cur:sumGeff(0),   type:'bold'},
-    {label:'Deduções',                cur:sumGeff(4),   type:'child'},
-    {label:'Margem de contribuição',  cur:sumGeff(9),   type:'result'},
-    {label:'Custos da operação',      cur:custosOpP2,   type:'bold'},
-    {label:'* Remunerações',          cur:sumGeff(27),  type:'child'},
-    {label:'* Administrativas',       cur:sumGeff(10),  type:'child'},
-    {label:'* Marketing',             cur:sumGeff(21),  type:'child'},
-    {label:'EBITDA',                  cur:sumGeff(30),  type:'ebitda'},
-    {label:'Lucro Líquido',           cur:sumGeff(40),  type:'result'},
-    {label:'Lucro líquido disponível',cur:sumGeff(43),  type:'result'},
-    {label:'Fluxo de caixa livre',    cur:sumGeff(45),  type:'result'},
+    {label:'Receita Bruta',           cur:sumGeff(DRE_IDX.receita), type:'bold'},
+    {label:'Deduções',                cur:sumGeff(DRE_IDX.ded),     type:'child'},
+    {label:'Margem de contribuição',  cur:sumGeff(DRE_IDX.mc),      type:'result'},
+    {label:'Custos da operação',      cur:custosOpP2,               type:'bold'},
+    {label:'* Remunerações',          cur:sumGeff(DRE_IDX.rem),     type:'child'},
+    {label:'* Administrativas',       cur:sumGeff(DRE_IDX.adm),     type:'child'},
+    {label:'* Marketing',             cur:sumGeff(DRE_IDX.com),     type:'child'},
+    {label:'EBITDA',                  cur:sumGeff(DRE_IDX.ebit),    type:'ebitda'},
+    {label:'Lucro Líquido',           cur:sumGeff(DRE_IDX.ll),      type:'result'},
+    {label:'Lucro líquido disponível',cur:sumGeff(DRE_IDX.lld),     type:'result'},
+    {label:'Fluxo de caixa livre',    cur:sumGeff(DRE_IDX.fcl),     type:'result'},
   ];
   let dreHtml=`<table class="dre-table" style="width:100%;"><thead><tr>
     <th style="text-align:left;">Descrição</th><th>${periodLabel}</th>
@@ -5034,15 +5054,16 @@ function parseDREFromCSV(arr){
     else if(/lucro operacional|ebit/.test(lo))type='ebitda';
     dreAllRows.push({r:r-hRow+3,label,vals,type}); // r=4 para primeira linha (igual Excel)
   }
-  console.log('[GS] dreAllRows=',dreAllRows.length,'primeiro label=',dreAllRows[0]?.label);
+  buildDreIndex();
+  console.log('[GS] dreAllRows=',dreAllRows.length,'primeiro label=',dreAllRows[0]?.label,'DRE_IDX=',DRE_IDX);
 }
 
 function buildKpiHistoryFromDRE(){
   kpiHistory=dreMonths.map((m,idx)=>{
     const g=ri=>dreAllRows[ri]?.vals[idx]?.val??0;
-    // LM não possui linha "(-) Despesas com Pessoal" separada — apenas "(-) Remuneração dos sócios" (g(27))
-    const receita=g(0)||0,ded=g(4)||0,adm=g(10)||0,com=g(21)||0,folha=0,rem=g(27)||0;
-    const dfin=g(34)||0,rfin=g(31)||0,ebit=g(30)||0,ll=g(40)||0,fcl=g(45)||0;
+    // LM não possui linha "(-) Despesas com Pessoal" separada — apenas "(-) Remuneração dos sócios" (DRE_IDX.rem)
+    const receita=g(DRE_IDX.receita)||0,ded=g(DRE_IDX.ded)||0,adm=g(DRE_IDX.adm)||0,com=g(DRE_IDX.com)||0,folha=0,rem=g(DRE_IDX.rem)||0;
+    const dfin=g(DRE_IDX.dfin)||0,rfin=g(DRE_IDX.rfin)||0,ebit=g(DRE_IDX.ebit)||0,ll=g(DRE_IDX.ll)||0,fcl=g(DRE_IDX.fcl)||0;
     const fcl_pct=receita?fcl/receita:0;
     const ebitda_pct=receita?ebit/receita:0;
     const ll_pct=receita?ll/receita:0;
@@ -5050,7 +5071,7 @@ function buildKpiHistoryFromDRE(){
     const folha_pct=receita?Math.abs(folha)/receita:0;
     const rem_pct=receita?Math.abs(rem)/receita:0;
     const ql_val=(ll&&ll>0)?fcl/ll:null;
-    const mc=g(9)||0,mc_pct=receita?mc/receita:0;
+    const mc=g(DRE_IDX.mc)||0,mc_pct=receita?mc/receita:0;
     const custos_fixos=Math.abs(adm)+Math.abs(com)+Math.abs(folha)+Math.abs(rem);
     const pe_val=mc_pct>0?custos_fixos/mc_pct:null;
     const margem_seg=pe_val&&receita?Math.max(0,(receita-pe_val)/receita):null;
@@ -5455,12 +5476,12 @@ async function loadFromGSheets(){
     parseMetasFromCSV(metasArr);
     try{
       parseRelatorioDividendosFromCSV(await fetchGSCSV('Relatório'));
-      // Sobrescreve a linha de Dividendos do DRE (47) com o valor da aba Relatório (coluna J),
+      // Sobrescreve a linha de Dividendos do DRE com o valor da aba Relatório (coluna J),
       // no mês a que esse valor se refere — assim os cards usam sempre o valor correto por período
       const rd=window.relatorioDividendos;
-      if(rd&&dreAllRows[44]){
+      if(rd&&dreAllRows[DRE_IDX.div]){
         const rdIdx=dreMonths.findIndex(m=>m.date&&m.date.getFullYear()===rd.date.getFullYear()&&m.date.getMonth()===rd.date.getMonth());
-        if(rdIdx>=0&&dreAllRows[44].vals[rdIdx]) dreAllRows[44].vals[rdIdx].val=-Math.abs(rd.valor);
+        if(rdIdx>=0&&dreAllRows[DRE_IDX.div].vals[rdIdx]) dreAllRows[DRE_IDX.div].vals[rdIdx].val=-Math.abs(rd.valor);
       }
     }catch(e){window.relatorioDividendos=null;}
     window.relatorioData=null;window.receitasByType={};window.receitasByTypePrev={};
@@ -5526,8 +5547,8 @@ async function loadFromGSheets(){
     try{document.getElementById('btn-relatorio').style.display='block';}catch(e){}
     try{document.getElementById('setor-wrap').style.display='block';}catch(e){}
     // Mês vigente como padrão (fallback: último mês com dados)
-    const latestWithData=dreAllRows[0]?dreMonths.reduce((best,m,i)=>{
-      const v=dreAllRows[0].vals[i]?.val;return(v&&v>0)?i:best;
+    const latestWithData=dreAllRows[DRE_IDX.receita]?dreMonths.reduce((best,m,i)=>{
+      const v=dreAllRows[DRE_IDX.receita].vals[i]?.val;return(v&&v>0)?i:best;
     },-1):dreMonths.length-1;
     const _now=new Date();const _nowYM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
     const _curDreIdx=dreMonths.findIndex(m=>m.date&&`${m.date.getFullYear()}-${String(m.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
@@ -5699,21 +5720,21 @@ function relGetSaldo(date){
 }
 function relGetPagamentos(idx){
   const g=(ri)=>dreAllRows[ri]?.vals[idx]?.val??0;
-  return Math.abs(g(4))+Math.abs(g(10))+Math.abs(g(21))+Math.abs(g(27))+Math.abs(g(34));
+  return Math.abs(g(DRE_IDX.ded))+Math.abs(g(DRE_IDX.adm))+Math.abs(g(DRE_IDX.com))+Math.abs(g(DRE_IDX.rem))+Math.abs(g(DRE_IDX.dfin));
 }
 function relGetMargem(idx){
   const g=(ri)=>dreAllRows[ri]?.vals[idx]?.val??0;
-  const fat=g(0),ebit=g(30);
+  const fat=g(DRE_IDX.receita),ebit=g(DRE_IDX.ebit);
   const d=dreMonths[idx]?.date;
   const kE=d?kpiHistory.find(k=>k.date&&k.date.getMonth()===d.getMonth()&&k.date.getFullYear()===d.getFullYear()):null;
   if(kE&&kE.ebitda_pct) return kE.ebitda_pct*100;
   return fat?ebit/fat*100:0;
 }
 function relEbitdaPct(idx){ return relGetMargem(idx); }
-function relGetFCL(idx){ return dreAllRows[45]?.vals[idx]?.val??0; }
+function relGetFCL(idx){ return dreAllRows[DRE_IDX.fcl]?.vals[idx]?.val??0; }
 function relCustosOp(idx){
   const g=(ri)=>dreAllRows[ri]?.vals[idx]?.val??0;
-  return Math.abs(g(10))+Math.abs(g(21))+Math.abs(g(27));
+  return Math.abs(g(DRE_IDX.adm))+Math.abs(g(DRE_IDX.com))+Math.abs(g(DRE_IDX.rem));
 }
 function relRunway(idx){
   const k=kpiHistory[idx];
@@ -5724,11 +5745,11 @@ function relRunway(idx){
 function gerarResumoNarrativo(idx){
   const prev=idx>0?idx-1:null;
   const g=(ri,i)=>dreAllRows[ri]?.vals[i]?.val??0;
-  const fat=g(0,idx),fatP=prev!=null?g(0,prev):0;
-  const ebitda=g(30,idx),ebitdaPct=relEbitdaPct(idx);
+  const fat=g(DRE_IDX.receita,idx),fatP=prev!=null?g(DRE_IDX.receita,prev):0;
+  const ebitda=g(DRE_IDX.ebit,idx),ebitdaPct=relEbitdaPct(idx);
   const mesD=dreMonths[idx]?.date,prevD=prev!=null?dreMonths[prev]?.date:null;
   const rec=relGetEntradas(mesD),pag=relGetPagamentos(idx);
-  const fcl=relGetFCL(idx),ll=g(40,idx);
+  const fcl=relGetFCL(idx),ll=g(DRE_IDX.ll,idx);
   const dFat=relDeltaPct(fat,fatP);
   // 1) Faturamento -> EBITDA/margem
   const f1=`Faturamento de <b>${relFmtBRL(fat)}</b> (${dFat>=0?'+':''}${relFmtPct1(dFat)}% no mês) sustentou um EBITDA de <b>${relFmtBRL(ebitda)}</b>, margem de ${relFmtPct1(ebitdaPct)}%.`;
@@ -5763,7 +5784,7 @@ function gerarRecomendacoes(idx){
   const runway=relRunway(idx);
   const ebitPct=relEbitdaPct(idx),ebitPctP=prev!=null?relEbitdaPct(prev):ebitPct;
   const g=(ri,i)=>dreAllRows[ri]?.vals[i]?.val??0;
-  const fat=g(0,idx),fatP=prev!=null?g(0,prev):0;
+  const fat=g(DRE_IDX.receita,idx),fatP=prev!=null?g(DRE_IDX.receita,prev):0;
   const custo=relCustosOp(idx),custoP=prev!=null?relCustosOp(prev):custo;
   const fcl=relGetFCL(idx);
   // rec1: runway < 3 -> alerta; senão EBITDA% caiu -> custos; senão manutenção
@@ -5803,16 +5824,16 @@ function buildDreReport(idx){
   const g=(ri,i)=>i==null?null:(dreAllRows[ri]?.vals[i]?.val??null);
   const ML=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const fmt=d=>d?ML[d.getMonth()]+'/'+String(d.getFullYear()).slice(-2):'—';
-  const custo=ci=>{const a=g(10,ci),b=g(21,ci),c=g(27,ci);return (a==null&&b==null&&c==null)?null:(a||0)+(b||0)+(c||0);};
+  const custo=ci=>{const a=g(DRE_IDX.adm,ci),b=g(DRE_IDX.com,ci),c=g(DRE_IDX.rem,ci);return (a==null&&b==null&&c==null)?null:(a||0)+(b||0)+(c||0);};
   const defs=[
-    {label:'Receita Bruta',ri:0,bold:false},
-    {label:'Deduções',ri:4,bold:false},
-    {label:'Margem de Contribuição',ri:9,bold:false},
+    {label:'Receita Bruta',ri:DRE_IDX.receita,bold:false},
+    {label:'Deduções',ri:DRE_IDX.ded,bold:false},
+    {label:'Margem de Contribuição',ri:DRE_IDX.mc,bold:false},
     {label:'Custos da Operação',custo:true,bold:false},
-    {label:'EBITDA',ri:30,bold:true},
-    {label:'Lucro Líquido',ri:40,bold:true},
-    {label:'Lucro Líquido Disponível',ri:43,bold:false},
-    {label:'Fluxo de Caixa Livre',ri:45,bold:true},
+    {label:'EBITDA',ri:DRE_IDX.ebit,bold:true},
+    {label:'Lucro Líquido',ri:DRE_IDX.ll,bold:true},
+    {label:'Lucro Líquido Disponível',ri:DRE_IDX.lld,bold:false},
+    {label:'Fluxo de Caixa Livre',ri:DRE_IDX.fcl,bold:true},
   ];
   const fmtV=v=>v==null?'—':relFmtBRL(v).replace('R$ ','');
   const fmtVar=(a,b)=>{if(a==null||b==null||b===0)return'—';const c=(a-b)/Math.abs(b)*100;return (c>=0?'+':'')+relFmtPct1(c)+'%';};
@@ -5848,9 +5869,9 @@ function renderRelChartEvolucao(idx,nMeses){
   const labels=[],fat=[],ebitda=[],fcl=[];
   for(let i=start;i<=idx;i++){
     labels.push(dreMonths[i].label);
-    fat.push(Math.round(g(0,i)/1000));
-    ebitda.push(Math.round(g(30,i)/1000));
-    fcl.push(Math.round(g(45,i)/1000));
+    fat.push(Math.round(g(DRE_IDX.receita,i)/1000));
+    ebitda.push(Math.round(g(DRE_IDX.ebit,i)/1000));
+    fcl.push(Math.round(g(DRE_IDX.fcl,i)/1000));
   }
   const mk=(color,data,fill)=>({data,borderColor:color,backgroundColor:fill||'transparent',borderWidth:2.5,tension:.38,fill:!!fill,pointRadius:3,pointBackgroundColor:color,pointBorderColor:'#fff',pointBorderWidth:1.5});
   return _chartToPng({
@@ -5892,7 +5913,7 @@ function renderRelChartCaixa(idx){
 async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
   const prev=idx>0?idx-1:null;
   const g=(ri,i)=>dreAllRows[ri]?.vals[i]?.val??0;
-  const fat=g(0,idx),fatP=prev!=null?g(0,prev):0;
+  const fat=g(DRE_IDX.receita,idx),fatP=prev!=null?g(DRE_IDX.receita,prev):0;
   const pag=relGetPagamentos(idx),pagP=prev!=null?relGetPagamentos(prev):0;
   const mesD=dreMonths[idx]?.date,prevD=prev!=null?dreMonths[prev]?.date:null;
   const rec=relGetEntradas(mesD),recP=relGetEntradas(prevD);
