@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lançamentos · BN Gestão</title>
+<link rel="manifest" href="manifest-lancamentos.json">
+<meta name="theme-color" content="#0F6B50">
+<style>
+:root{
+  --brand:#0F6B50; --brand-d:#0A3D2E; --brand-l:rgba(15,107,80,.18);
+  --gold:#F5E5BA; --dark:#23262A; --mid:#4B5563; --gray:#6B7280;
+  --bg:#F7F7F5; --white:#FFFFFF; --border:#E8E8E6; --err:#C0392B;
+}
+*{box-sizing:border-box;}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--dark);margin:0;min-height:100vh;}
+.tela{display:none;min-height:100vh;align-items:center;justify-content:center;padding:20px;}
+.tela.ativa{display:flex;}
+.card{background:var(--white);border-radius:16px;padding:32px;max-width:440px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,.08);}
+h1{font-size:20px;margin:0 0 20px;color:var(--brand-d);}
+label{display:block;font-size:13px;color:var(--mid);margin:14px 0 4px;font-weight:600;}
+input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;background:var(--white);color:var(--dark);}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:var(--brand);color:#fff;font-weight:700;font-size:15px;margin-top:18px;cursor:pointer;}
+button:hover{background:var(--brand-d);}
+button.secundario{background:var(--border);color:var(--dark);margin-top:8px;}
+.cliente-btn{display:block;width:100%;padding:16px;margin:8px 0;border:1px solid var(--border);border-radius:10px;background:var(--white);font-size:16px;font-weight:600;text-align:left;cursor:pointer;}
+.cliente-btn:hover{background:var(--brand-l);}
+.erro{color:var(--err);font-size:13px;margin-top:10px;display:none;}
+.condicional{display:none;}
+.condicional.ativa{display:block;}
+.topo{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.topo button{width:auto;margin:0;padding:6px 12px;font-size:13px;background:var(--border);color:var(--dark);}
+.feedback{margin-top:16px;padding:12px;border-radius:8px;font-size:14px;display:none;}
+.feedback.ok{background:#e6f4ec;color:var(--brand-d);display:block;}
+.feedback.erro-fb{background:#fbeae8;color:var(--err);display:block;}
+</style>
+</head>
+<body>
+
+<div id="tela-login" class="tela ativa">
+  <div class="card">
+    <h1>Lançamentos · BN Gestão</h1>
+    <label for="login-user">Usuário</label>
+    <input id="login-user" type="text" autocomplete="username">
+    <label for="login-pass">Senha</label>
+    <input id="login-pass" type="password" autocomplete="current-password">
+    <button onclick="tentarLogin()">Entrar</button>
+    <div id="login-erro" class="erro">Usuário ou senha incorretos.</div>
+  </div>
+</div>
+
+<div id="tela-cliente" class="tela">
+  <div class="card">
+    <h1>Escolha o cliente</h1>
+    <div id="lista-clientes"></div>
+  </div>
+</div>
+
+<div id="tela-form" class="tela">
+  <div class="card">
+    <div class="topo">
+      <strong id="form-cliente-nome"></strong>
+      <button onclick="trocarCliente()">Trocar cliente</button>
+    </div>
+    <h1>Novo lançamento</h1>
+
+    <label for="f-data-caixa">Data de caixa</label>
+    <input id="f-data-caixa" type="date">
+
+    <label for="f-data-comp">Data de competência</label>
+    <input id="f-data-comp" type="date">
+
+    <label for="f-conta">Conta</label>
+    <select id="f-conta"></select>
+
+    <label for="f-tipo">Tipo</label>
+    <select id="f-tipo" onchange="onTipoChange()">
+      <option value="Entrada">Entrada</option>
+      <option value="Saída">Saída</option>
+      <option value="Transferência">Transferência</option>
+    </select>
+
+    <div id="cond-conta-destino" class="condicional">
+      <label for="f-conta-destino">Conta destino</label>
+      <select id="f-conta-destino"></select>
+    </div>
+
+    <label for="f-categoria">Categoria</label>
+    <select id="f-categoria"></select>
+
+    <label for="f-centro">Centro de custos</label>
+    <select id="f-centro"></select>
+
+    <label for="f-descricao">Descrição</label>
+    <input id="f-descricao" type="text">
+
+    <label for="f-status">Status</label>
+    <select id="f-status">
+      <option value="Realizado">Realizado</option>
+      <option value="Previsto">Previsto</option>
+    </select>
+
+    <label for="f-valor-previsto">Valor previsto</label>
+    <input id="f-valor-previsto" type="number" step="0.01" inputmode="decimal">
+
+    <label for="f-valor-real">Valor realizado</label>
+    <input id="f-valor-real" type="number" step="0.01" inputmode="decimal">
+
+    <label for="f-tipo-conta">Tipo de conta</label>
+    <select id="f-tipo-conta" onchange="onTipoContaChange()">
+      <option value="Única">Única</option>
+      <option value="Recorrente">Recorrente</option>
+      <option value="Parcelado">Parcelado</option>
+    </select>
+
+    <div id="cond-parcelas" class="condicional">
+      <label for="f-parcelas">Nº de parcelas</label>
+      <input id="f-parcelas" type="number" min="1" step="1" value="1">
+    </div>
+
+    <label><input type="checkbox" id="f-tem-taxa" onchange="onTemTaxaChange()" style="width:auto;display:inline;margin-right:6px;"> Tem taxa de adquirente?</label>
+    <div id="cond-taxa" class="condicional">
+      <label for="f-adquirente">Adquirente</label>
+      <input id="f-adquirente" type="text">
+      <label for="f-taxa-valor">Taxa cobrada (R$)</label>
+      <input id="f-taxa-valor" type="number" step="0.01" inputmode="decimal">
+    </div>
+
+    <label><input type="checkbox" id="f-tem-encargo" onchange="onTemEncargoChange()" style="width:auto;display:inline;margin-right:6px;"> Tem encargo financeiro?</label>
+    <div id="cond-encargo" class="condicional">
+      <label for="f-encargo-tipo">Tipo de encargo</label>
+      <input id="f-encargo-tipo" type="text">
+      <label for="f-encargo-valor">Valor do encargo (R$)</label>
+      <input id="f-encargo-valor" type="number" step="0.01" inputmode="decimal">
+    </div>
+
+    <button onclick="salvarLancamento()">Salvar</button>
+    <div id="form-feedback" class="feedback"></div>
+  </div>
+</div>
+
+<script>
+// ── Configuração de clientes ─────────────────────────────────────
+// Adicionar um cliente novo: somar uma entrada aqui (nome, URL do Web
+// App depois de implantado, ID da planilha, listas de Conta/Centro).
+const CLIENTES = {
+  lm: {
+    nome: 'LM Consultoria',
+    webAppUrl: 'COLOQUE_AQUI_A_URL_DO_WEB_APP_LM',
+    sheetId: '1m3Wu5kFV6bp2ZVpVVDk_7UyXhyf8jDivq_2Airc15mU',
+    contas: ['Inter','Stone','Prime','Asaas','Caixa interno','Contabilizei','Aplicação','CC - Inter'],
+    centros: ['Receita - Personal','Receita - Consultoria','Deduções','Administrativo','Marketing','Operacional','Financeiro','Remuneração dos sócios','Outros']
+  },
+  bl: {
+    nome: 'Body and Life',
+    webAppUrl: 'COLOQUE_AQUI_A_URL_DO_WEB_APP_BL',
+    sheetId: '1r2AXCvdMHRo1tTELpE8JLzDhCrK4rhqs7PXupsU_29I',
+    contas: ['Itaú','Bradesco'],
+    centros: null // BL usa faixa de "Dados iniciais" (coluna B), buscada ao vivo
+  }
+};
+
+// Mesmo valor de PWA_SENHA definido no Apps Script (macros_LM_v2.gs) —
+// enviado automaticamente em toda chamada, sem o usuário digitar nada.
+const BACKEND_SENHA = 'TROCAR_ESTA_SENHA';
+const LOGIN_USUARIO = 'TROCAR_USUARIO';
+const LOGIN_SENHA = 'TROCAR_SENHA';
+
+let clienteAtual = null;
+
+function $(id){ return document.getElementById(id); }
+
+function mostrarTela(id){
+  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
+  $(id).classList.add('ativa');
+}
+
+function tentarLogin(){
+  const u = $('login-user').value.trim();
+  const p = $('login-pass').value;
+  if (u === LOGIN_USUARIO && p === LOGIN_SENHA) {
+    localStorage.setItem('pwa_logado', '1');
+    $('login-erro').style.display = 'none';
+    irParaEscolhaOuFormulario();
+  } else {
+    $('login-erro').style.display = 'block';
+  }
+}
+
+function irParaEscolhaOuFormulario(){
+  const salvo = localStorage.getItem('pwa_cliente');
+  if (salvo && CLIENTES[salvo]) {
+    selecionarCliente(salvo);
+  } else {
+    montarListaClientes();
+    mostrarTela('tela-cliente');
+  }
+}
+
+function montarListaClientes(){
+  const wrap = $('lista-clientes');
+  wrap.innerHTML = '';
+  Object.keys(CLIENTES).forEach(chave=>{
+    const btn = document.createElement('button');
+    btn.className = 'cliente-btn';
+    btn.textContent = CLIENTES[chave].nome;
+    btn.onclick = ()=>selecionarCliente(chave);
+    wrap.appendChild(btn);
+  });
+}
+
+function trocarCliente(){
+  localStorage.removeItem('pwa_cliente');
+  montarListaClientes();
+  mostrarTela('tela-cliente');
+}
+
+async function selecionarCliente(chave){
+  clienteAtual = chave;
+  localStorage.setItem('pwa_cliente', chave);
+  $('form-cliente-nome').textContent = CLIENTES[chave].nome;
+  await montarFormulario(chave);
+  mostrarTela('tela-form');
+}
+
+// Inicialização: se já estava logado e com cliente escolhido, pula direto pro formulário.
+window.addEventListener('DOMContentLoaded', ()=>{
+  if (localStorage.getItem('pwa_logado') === '1') {
+    irParaEscolhaOuFormulario();
+  }
+  const hoje = new Date().toISOString().slice(0,10);
+  $('f-data-caixa').value = hoje;
+  $('f-data-comp').value = hoje;
+});
+
+function onTipoChange(){
+  $('cond-conta-destino').classList.toggle('ativa', $('f-tipo').value === 'Transferência');
+}
+function onTipoContaChange(){
+  $('cond-parcelas').classList.toggle('ativa', $('f-tipo-conta').value === 'Parcelado');
+}
+function onTemTaxaChange(){
+  $('cond-taxa').classList.toggle('ativa', $('f-tem-taxa').checked);
+}
+function onTemEncargoChange(){
+  $('cond-encargo').classList.toggle('ativa', $('f-tem-encargo').checked);
+}
+
+// ── Dropdowns dinâmicos ──────────────────────────────────────────
+function preencherSelect(id, valores){
+  const sel = $(id);
+  sel.innerHTML = '';
+  valores.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+async function buscarColunaDadosIniciais(sheetId, coluna){
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=Dados%20iniciais&range=${coluna}3:${coluna}60`;
+  const res = await fetch(url);
+  const texto = await res.text();
+  return texto.split('\n')
+    .map(l=>l.replace(/^"|"$/g,'').trim())
+    .filter(v=>v.length>0);
+}
+
+async function montarFormulario(chave){
+  const cli = CLIENTES[chave];
+  preencherSelect('f-conta', cli.contas);
+  preencherSelect('f-conta-destino', cli.contas);
+
+  const categorias = await buscarColunaDadosIniciais(cli.sheetId, 'A');
+  preencherSelect('f-categoria', categorias);
+
+  if (cli.centros) {
+    preencherSelect('f-centro', cli.centros);
+  } else {
+    const centros = await buscarColunaDadosIniciais(cli.sheetId, 'B');
+    preencherSelect('f-centro', centros);
+  }
+}
+
+// ── Envio ────────────────────────────────────────────────────────
+function montarPayload(){
+  return {
+    senha: BACKEND_SENHA,
+    dataCaixa: $('f-data-caixa').value,
+    dataComp: $('f-data-comp').value,
+    conta: $('f-conta').value,
+    tipo: $('f-tipo').value,
+    categoria: $('f-categoria').value,
+    descricao: $('f-descricao').value,
+    status: $('f-status').value,
+    valorPrevisto: Number($('f-valor-previsto').value) || 0,
+    valorReal: Number($('f-valor-real').value) || 0,
+    centro: $('f-centro').value,
+    tipoConta: $('f-tipo-conta').value,
+    parcelas: $('f-tipo-conta').value === 'Parcelado' ? (Number($('f-parcelas').value) || 1) : 1,
+    adquirente: $('f-tem-taxa').checked ? $('f-adquirente').value : '',
+    taxaValor: $('f-tem-taxa').checked ? (Number($('f-taxa-valor').value) || 0) : 0,
+    tipoEncargo: $('f-tem-encargo').checked ? $('f-encargo-tipo').value : '',
+    encargoValor: $('f-tem-encargo').checked ? (Number($('f-encargo-valor').value) || 0) : 0,
+    contaDestino: $('f-tipo').value === 'Transferência' ? $('f-conta-destino').value : ''
+  };
+}
+
+// Envia direto ao Web App. Lança o erro pra quem chamar decidir o que
+// fazer (Task 3 usa isso pra cair na fila local quando offline).
+async function enviarLancamento(payload, webAppUrl){
+  const res = await fetch(webAppUrl, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  const dados = await res.json();
+  if (!dados.ok) throw new Error(dados.error || 'Falha ao gravar.');
+  return dados;
+}
+
+function limparFormulario(){
+  $('f-descricao').value = '';
+  $('f-valor-previsto').value = '';
+  $('f-valor-real').value = '';
+  $('f-tem-taxa').checked = false;
+  $('f-tem-encargo').checked = false;
+  onTemTaxaChange();
+  onTemEncargoChange();
+  $('f-tipo-conta').value = 'Única';
+  onTipoContaChange();
+}
+
+async function salvarLancamento(){
+  const fb = $('form-feedback');
+  fb.className = 'feedback';
+  fb.style.display = 'none';
+  const payload = montarPayload();
+  try {
+    await enviarLancamento(payload, CLIENTES[clienteAtual].webAppUrl);
+    fb.textContent = 'Salvo na fila ✓ — pode levar alguns minutos até aparecer na planilha.';
+    fb.className = 'feedback ok';
+    limparFormulario();
+  } catch (e) {
+    fb.textContent = 'Erro ao enviar: ' + e.message;
+    fb.className = 'feedback erro-fb';
+  }
+}
+</script>
+</body>
+</html>
