@@ -5013,7 +5013,7 @@ function parseCaixaFromCSV(arr){
     const label=String(dateObj.getDate()).padStart(2,'0')+'/'+String(dateObj.getMonth()+1).padStart(2,'0');
     window.caixaDiario.push({date:dateObj,label,
       entP:parseBRNum(row[1]),entR:parseBRNum(row[2]),saidP:parseBRNum(row[3]),saidR:parseBRNum(row[4]),
-      previsto:parseBRNum(row[6]),consolidado:parseBRNum(row[7]),
+      previsto:parseBRNum(row[8]),consolidado:parseBRNum(row[7]),
       month:dateObj.getMonth(),year:dateObj.getFullYear()});
   }
   // caixaMonths para o seletor de período
