@@ -2687,7 +2687,7 @@ function renderCaixaProjetado(){
   const labels=nextRows.map(r=>r.label);
   const entradasP=nextRows.map(r=>r.entP||0);
   const saidasP=nextRows.map(r=>r.saidP||0);
-  const previsto=nextRows.map(r=>r.previsto);
+  const previsto=nextRows.map(r=>r.previstoDinamico);
   // Waterfall-style: bars for entradas/saídas, line for saldo projetado
   if(chartCaixaProj)chartCaixaProj.destroy();
   chartCaixaProj=new Chart(document.getElementById('caixa-proj-chart'),{
@@ -5076,7 +5076,7 @@ function parseCaixaFromCSV(arr){
     const label=String(dateObj.getDate()).padStart(2,'0')+'/'+String(dateObj.getMonth()+1).padStart(2,'0');
     window.caixaDiario.push({date:dateObj,label,
       entP:parseBRNum(row[1]),entR:parseBRNum(row[2]),saidP:parseBRNum(row[3]),saidR:parseBRNum(row[4]),
-      previsto:parseBRNum(row[8]),consolidado:parseBRNum(row[7]),
+      previsto:parseBRNum(row[6]),previstoDinamico:parseBRNum(row[8]),consolidado:parseBRNum(row[7]),
       month:dateObj.getMonth(),year:dateObj.getFullYear()});
   }
   // caixaMonths para o seletor de período
