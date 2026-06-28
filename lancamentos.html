@@ -149,14 +149,17 @@ const CLIENTES = {
     webAppUrl: 'https://script.google.com/macros/s/AKfycbwAH3tj4rqlcxRAmIH2QMb_RN4ZR0_YsxEJI6Lq57gDhcwXo08lxctr3BOpxrYHxNny/exec',
     sheetId: '1m3Wu5kFV6bp2ZVpVVDk_7UyXhyf8jDivq_2Airc15mU',
     contas: ['Inter','Stone','Prime','Asaas','Caixa interno','Contabilizei','Aplicação','CC - Inter'],
-    centros: ['Receita - Personal','Receita - Consultoria','Deduções','Administrativo','Marketing','Operacional','Financeiro','Remuneração dos sócios','Outros']
+    centros: ['Receita - Personal','Receita - Consultoria','Deduções','Administrativo','Marketing','Operacional','Financeiro','Remuneração dos sócios','Outros'],
+    categoriaCol: 'A' // Dados iniciais coluna A = Categoria (LM)
   },
   bl: {
     nome: 'Body and Life',
     webAppUrl: 'https://script.google.com/macros/s/AKfycbxsi3CplO-2ewDQvrLs6KE0rGQJB7Kes3xiBGjX5RJ8ntqyzOGrE_6HDl-luMa1HJ8q/exec',
     sheetId: '1r2AXCvdMHRo1tTELpE8JLzDhCrK4rhqs7PXupsU_29I',
     contas: ['Itaú','Bradesco'],
-    centros: null // BL usa faixa de "Dados iniciais" (coluna B), buscada ao vivo
+    centros: null, // BL usa faixa de "Dados iniciais" (coluna A), buscada ao vivo
+    categoriaCol: 'B', // Dados iniciais coluna B = Categoria (BL — invertido em relação à LM)
+    centroCol: 'A' // Dados iniciais coluna A = Centro de custos (BL)
   }
 };
 
@@ -342,13 +345,13 @@ async function montarFormulario(chave){
   preencherSelect('f-conta', cli.contas);
   preencherSelect('f-conta-destino', cli.contas);
 
-  const categorias = await buscarColunaDadosIniciais(cli.sheetId, 'A');
+  const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
   preencherSelect('f-categoria', categorias);
 
   if (cli.centros) {
     preencherSelect('f-centro', cli.centros);
   } else {
-    const centros = await buscarColunaDadosIniciais(cli.sheetId, 'B');
+    const centros = await buscarColunaDadosIniciais(cli.sheetId, cli.centroCol);
     preencherSelect('f-centro', centros);
   }
 }
