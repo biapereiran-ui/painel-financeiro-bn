@@ -227,6 +227,15 @@ async function selecionarCliente(chave){
 }
 
 // ── Fila local (offline) + histórico ────────────────────────────
+
+// Limpa itens antigos criados com a versão anterior (onde o item era salvo
+// com enviado:false antes do envio, causando duplicatas).
+function migrarFilaSeNecessario(){
+  if (localStorage.getItem('pwa_fila_v') === '2') return;
+  localStorage.removeItem('pwa_fila');
+  localStorage.setItem('pwa_fila_v', '2');
+}
+
 function lerFilaLocal(){
   try { return JSON.parse(localStorage.getItem('pwa_fila') || '[]'); }
   catch (e) { return []; }
@@ -257,25 +266,34 @@ async function salvarLancamento(){
   const fb = $('form-feedback');
   fb.className = 'feedback';
   fb.style.display = 'none';
+
+  // Desabilita o botão durante o envio para evitar duplo clique.
+  const btn = document.querySelector('#tela-form button:not(.secundario)');
+  if (btn) btn.disabled = true;
+
   const payload = montarPayload();
   const webAppUrl = CLIENTES[clienteAtual].webAppUrl;
-  const fila = lerFilaLocal();
-  const item = { payload, webAppUrl, enviado: false, criadoEm: Date.now() };
-  fila.push(item);
-  salvarFilaLocal(fila);
 
+  // Envia PRIMEIRO — só depois salva no localStorage.
+  // Isso elimina a janela de tempo em que o item fica com enviado:false
+  // no LS enquanto o fetch está em andamento, que causava duplicatas quando
+  // tentarReenviarFila() rodava concorrentemente (evento 'online' ou reload).
+  let enviado = false;
   try {
     await enviarLancamento(payload, webAppUrl);
-    item.enviado = true;
-    salvarFilaLocal(fila);
-    fb.textContent = 'Salvo na fila ✓ — pode levar alguns minutos até aparecer na planilha.';
+    enviado = true;
+    fb.textContent = 'Lançamento salvo ✓ — pode levar alguns minutos até aparecer na planilha.';
     fb.className = 'feedback ok';
-    limparFormulario();
   } catch (e) {
     fb.textContent = 'Sem conexão agora — guardado neste aparelho, será enviado quando a internet voltar.';
     fb.className = 'feedback ok';
-    limparFormulario();
   }
+
+  const fila = lerFilaLocal();
+  fila.push({ payload, webAppUrl, enviado, criadoEm: Date.now() });
+  salvarFilaLocal(fila);
+  limparFormulario();
+  if (btn) btn.disabled = false;
   renderHistorico();
 }
 
@@ -297,6 +315,7 @@ window.addEventListener('online', tentarReenviarFila);
 
 // Inicialização: se já estava logado e com cliente escolhido, pula direto pro formulário.
 window.addEventListener('DOMContentLoaded', ()=>{
+  migrarFilaSeNecessario(); // limpa fila antiga com itens de enviado:false pré-envio
   if (localStorage.getItem('pwa_logado') === '1') {
     irParaEscolhaOuFormulario();
   }
