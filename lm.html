@@ -5878,6 +5878,7 @@ async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
   }
   const proj=gerarProjecaoCaixa(idx);
   const dre=buildDreReport(idx);
+  const strip=s=>String(s).replace(/<[^>]+>/g,'');
 
   return {
     cliente:document.getElementById('h-client')?.textContent||'Cliente',
@@ -5885,7 +5886,7 @@ async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
     dreMC:dre.mc, dreMA:dre.ma,
     kpis,
     dre:dre.rows,
-    r:resumo, c:caixaTxt, rec:recTxt,
+    r:resumo.map(strip), c:caixaTxt.map(strip), rec:recTxt.map(strip),
     pj:[proj.receita,proj.saldo],
     chartEvolucao, chartCaixa,
     logoUrl:window.__clientLogoUrl||'',
