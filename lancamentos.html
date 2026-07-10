@@ -118,6 +118,17 @@ button.secundario{background:var(--border);color:var(--dark);margin-top:8px;}
       <input id="f-parcelas" type="number" min="1" step="1" value="1">
     </div>
 
+    <div id="cond-recorrencias" class="condicional">
+      <label for="f-recorrencias">Nº de recorrências</label>
+      <input id="f-recorrencias" type="number" min="2" step="1" value="2">
+      <label for="f-intervalo">Intervalo</label>
+      <select id="f-intervalo">
+        <option value="mensal">Mensal</option>
+        <option value="quinzenal">Quinzenal</option>
+        <option value="semanal">Semanal</option>
+      </select>
+    </div>
+
     <label><input type="checkbox" id="f-tem-taxa" onchange="onTemTaxaChange()" style="width:auto;display:inline;margin-right:6px;"> Tem taxa de adquirente?</label>
     <div id="cond-taxa" class="condicional">
       <label for="f-adquirente">Adquirente</label>
@@ -267,30 +278,52 @@ async function salvarLancamento(){
   fb.className = 'feedback';
   fb.style.display = 'none';
 
-  // Desabilita o botão durante o envio para evitar duplo clique.
   const btn = document.querySelector('#tela-form button:not(.secundario)');
   if (btn) btn.disabled = true;
 
-  const payload = montarPayload();
-  const webAppUrl = CLIENTES[clienteAtual].webAppUrl;
+  const webAppUrl   = CLIENTES[clienteAtual].webAppUrl;
+  const basePayload = montarPayload();
+  const tipoConta   = $('f-tipo-conta').value;
 
-  // Envia PRIMEIRO — só depois salva no localStorage.
-  // Isso elimina a janela de tempo em que o item fica com enviado:false
-  // no LS enquanto o fetch está em andamento, que causava duplicatas quando
-  // tentarReenviarFila() rodava concorrentemente (evento 'online' ou reload).
-  let enviado = false;
+  // Para Recorrente gera N payloads com datas avançadas; demais tipos = 1 payload.
+  let payloads;
+  if (tipoConta === 'Recorrente') {
+    const nRecorr  = Math.max(2, parseInt($('f-recorrencias').value) || 2);
+    const intervalo = $('f-intervalo').value;
+    payloads = [];
+    for (let i = 0; i < nRecorr; i++) {
+      payloads.push(Object.assign({}, basePayload, {
+        dataCaixa: shiftarData(basePayload.dataCaixa, i, intervalo),
+        dataComp:  shiftarData(basePayload.dataComp,  i, intervalo)
+      }));
+    }
+  } else {
+    payloads = [basePayload];
+  }
+
+  // Envia PRIMEIRO — só depois salva no localStorage (elimina janela de duplicata).
+  let enviados = 0;
   try {
-    await enviarLancamento(payload, webAppUrl);
-    enviado = true;
-    fb.textContent = 'Lançamento salvo ✓ — pode levar alguns minutos até aparecer na planilha.';
+    for (const p of payloads) {
+      await enviarLancamento(p, webAppUrl);
+      enviados++;
+    }
+    fb.textContent = payloads.length > 1
+      ? payloads.length + ' recorrências salvas ✓ — podem levar alguns minutos até aparecer na planilha.'
+      : 'Lançamento salvo ✓ — pode levar alguns minutos até aparecer na planilha.';
     fb.className = 'feedback ok';
   } catch (e) {
-    fb.textContent = 'Sem conexão agora — guardado neste aparelho, será enviado quando a internet voltar.';
+    const pendentes = payloads.length - enviados;
+    fb.textContent = enviados > 0
+      ? enviados + ' de ' + payloads.length + ' recorrências enviadas. ' + pendentes + ' guardada(s) neste aparelho.'
+      : 'Sem conexão agora — guardado neste aparelho, será enviado quando a internet voltar.';
     fb.className = 'feedback ok';
   }
 
   const fila = lerFilaLocal();
-  fila.push({ payload, webAppUrl, enviado, criadoEm: Date.now() });
+  payloads.forEach(function(p, i) {
+    fila.push({ payload: p, webAppUrl, enviado: i < enviados, criadoEm: Date.now() });
+  });
   salvarFilaLocal(fila);
   limparFormulario();
   if (btn) btn.disabled = false;
@@ -331,6 +364,7 @@ function onTipoChange(){
 }
 function onTipoContaChange(){
   $('cond-parcelas').classList.toggle('ativa', $('f-tipo-conta').value === 'Parcelado');
+  $('cond-recorrencias').classList.toggle('ativa', $('f-tipo-conta').value === 'Recorrente');
 }
 function onTemTaxaChange(){
   $('cond-taxa').classList.toggle('ativa', $('f-tem-taxa').checked);
@@ -376,6 +410,25 @@ async function montarFormulario(chave){
 }
 
 // ── Envio ────────────────────────────────────────────────────────
+// Avança uma data ISO (YYYY-MM-DD) n intervalos para frente.
+// Mensal preserva o dia (31/jan +1mês → 28/fev); semanal/quinzenal somam dias.
+function shiftarData(iso, n, intervalo) {
+  if (!n) return iso;
+  const d = new Date(iso + 'T12:00:00');
+  if (intervalo === 'semanal') {
+    d.setDate(d.getDate() + 7 * n);
+  } else if (intervalo === 'quinzenal') {
+    d.setDate(d.getDate() + 14 * n);
+  } else { // mensal
+    const dia = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(dia, ultimoDia));
+  }
+  return d.toISOString().slice(0, 10);
+}
+
 function montarPayload(){
   return {
     senha: BACKEND_SENHA,
@@ -424,6 +477,8 @@ function limparFormulario(){
   onTemTaxaChange();
   onTemEncargoChange();
   $('f-tipo-conta').value = 'Única';
+  $('f-recorrencias').value = '2';
+  $('f-intervalo').value = 'mensal';
   onTipoContaChange();
 }
 
