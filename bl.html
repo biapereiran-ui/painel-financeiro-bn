@@ -5490,7 +5490,7 @@ async function loadFromGSheets(){
         // Converte link de visualização do Google Drive em URL de imagem direta
         const m=logoUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
         const directUrl=m?`https://drive.google.com/uc?export=view&id=${m[1]}`:logoUrl;
-        window.__clientLogoUrl=directUrl;
+        window.__clientLogoUrl=m?`https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`:logoUrl;
         const img=document.getElementById('logo-img');
         if(img){img.src=directUrl;img.style.display='block';}
         // Favicon dinâmico
@@ -5881,6 +5881,7 @@ async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
   const proj=gerarProjecaoCaixa(idx);
   const dre=buildDreReport(idx);
   const strip=s=>String(s).replace(/<[^>]+>/g,'');
+  const validImg=s=>typeof s==='string'&&s.indexOf('data:image/')===0&&s.length>200;
 
   return {
     cliente:document.getElementById('h-client')?.textContent||'Cliente',
@@ -5890,7 +5891,7 @@ async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
     dre:dre.rows,
     r:resumo.map(strip), c:caixaTxt.map(strip), rec:recTxt.map(strip),
     pj:[proj.receita,proj.saldo],
-    chartEvolucao, chartCaixa,
+    chartEvolucao:validImg(chartEvolucao)?chartEvolucao:'', chartCaixa:validImg(chartCaixa)?chartCaixa:'',
     logoUrl:window.__clientLogoUrl||'',
   };
 }
