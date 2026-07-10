@@ -5844,6 +5844,18 @@ function renderRelChartCaixa(idx){
   },800,350);
 }
 
+// Só devolve a URL da logo se ela carregar mesmo como imagem (evita mandar HTML ao Slides)
+function relLogoOk(url){
+  if(!url) return Promise.resolve('');
+  return new Promise(res=>{
+    const im=new Image();
+    let done=false; const fin=v=>{if(!done){done=true;res(v);}};
+    im.onload=()=>fin(im.naturalWidth>0?url:'');
+    im.onerror=()=>fin('');
+    setTimeout(()=>fin(''),4000);
+    im.src=url;
+  });
+}
 async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
   const prev=idx>0?idx-1:null;
   const g=(ri,i)=>dreAllRows[ri]?.vals[i]?.val??0;
@@ -5890,7 +5902,7 @@ async function montarDadosRelatorio(idx,modo,periodoGrafico,recsEstrategico){
     r:resumo.map(strip), c:caixaTxt.map(strip), rec:recTxt.map(strip),
     pj:[proj.receita,proj.saldo],
     chartEvolucao:validImg(chartEvolucao)?chartEvolucao:'', chartCaixa:validImg(chartCaixa)?chartCaixa:'',
-    logoUrl:window.__clientLogoUrl||'',
+    logoUrl:await relLogoOk(window.__clientLogoUrl||''),
   };
 }
 
