@@ -3562,7 +3562,7 @@ function renderVCEfi(idx){
   if(p&&p.receita>0&&p.ll_abs>0&&d.ll_abs>0){
     const vR=(d.receita-p.receita)/p.receita;
     const vL=(d.ll_abs-p.ll_abs)/p.ll_abs;
-    if(Math.abs(vL)>0.001) gao=parseFloat((vR/vL).toFixed(2));
+    if(Math.abs(vR)>0.001) gao=parseFloat((vL/vR).toFixed(2));
   }
   // Crescimento MoM
   const grRec=p&&p.receita>0?(d.receita-p.receita)/p.receita:null;
@@ -4121,7 +4121,7 @@ function renderKPIsTab(idx){
   if(p&&p.receita>100&&p.ll_abs>0&&d.ll_abs>0){
     const vR=(d.receita-p.receita)/p.receita;
     const vL=(d.ll_abs-p.ll_abs)/p.ll_abs;
-    if(Math.abs(vL)>0.001) gao=parseFloat((vR/vL).toFixed(2));
+    if(Math.abs(vR)>0.001) gao=parseFloat((vL/vR).toFixed(2));
   }
 
   // Runway
@@ -4196,7 +4196,7 @@ function renderKPIsTab(idx){
   // ── 2. Eficiência ──
   render('kpis-grp-efi',[
     kpiCard('Eficiência Operacional',d.efi_op,p?.efi_op,v=>'R$'+v.toFixed(2)+'/R$1',{inv:true,t1:.75,t2:.60,detail:'Desp. totais / Receita'}),
-    kpiCard('Alavancagem Op. (GAO)',gao,null,v=>v!=null?v.toFixed(2)+'x':'—',{t1:1,t2:2,detail:'Var% Receita / Var% Lucro',noVar:true}),
+    kpiCard('Alavancagem Op. (GAO)',gao,null,v=>v!=null?v.toFixed(2)+'x':'—',{t1:1,t2:2,detail:'Var% Lucro / Var% Receita',noVar:true}),
     kpiCard('Cresc. Receita MoM',grRec,null,v=>v!=null?(v>=0?'+':'')+pct(v):'—',{t1:0,t2:.05,detail:'Crescimento mensal da receita',noVar:true}),
     kpiCard('Cresc. Lucro MoM',grLL,null,v=>v!=null?(v>=0?'+':'')+pct(v):'—',{t1:0,t2:.05,detail:'Crescimento mensal do lucro',noVar:true}),
   ]);
