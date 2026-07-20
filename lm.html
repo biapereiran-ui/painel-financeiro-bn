@@ -5090,8 +5090,21 @@ function parseCaixaFromCSV(arr){
 }
 
 function parseBaseDadosFromCSV(arr){
-  // Colunas: 0=Data caixa, 2=Ano, 3=Mês, 7=Tipo, 8=Centro de custos,
-  //          9=Categoria, 10=Descrição, 11=Status, 12=Valor previsto, 13=Valor realizado
+  // Detecta colunas pelo cabeçalho (arr[0]) para resistir a inserções na planilha
+  const hdr=(arr[0]||[]).map(h=>String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim().replace(/\s+/g,'_'));
+  const col=(keys,def)=>{const k=keys.find(k=>hdr.findIndex(h=>h.includes(k))>=0);return k!=null?hdr.findIndex(h=>h.includes(k)):def;};
+  const C_DATA  =col(['data_de_caixa','data_caixa','data'],0);
+  const C_ANO   =col(['ano'],2);
+  const C_MES   =col(['mes'],3);
+  const C_TIPO  =col(['tipo'],7);
+  const C_CC    =col(['centro'],8);
+  const C_CAT   =col(['categoria'],9);
+  const C_DESC  =col(['descri'],10);
+  const C_STATUS=col(['status'],11);
+  const C_VALP  =col(['valor_previsto','previsto'],12);
+  const C_VALR  =col(['valor_realizado','realizado'],13);
+  const C_TPCTA =col(['tipo_de_conta','tipo_conta'],19);
+  console.log('[BD CSV] colunas detectadas:',{C_DATA,C_TIPO,C_CAT,C_DESC,C_STATUS,C_VALP});
   const byMonth={};
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const limite=new Date(hoje);limite.setDate(limite.getDate()+15);limite.setHours(23,59,59,999);
@@ -5099,19 +5112,19 @@ function parseBaseDadosFromCSV(arr){
 
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
-    const tipo=(row[7]||'').toLowerCase();
-    const status=(row[11]||'').toLowerCase();
+    const tipo=(row[C_TIPO]||'').toLowerCase();
+    const status=(row[C_STATUS]||'').toLowerCase();
     const isPrevisto=status.includes('previsto');
 
     // ── Recebíveis por mês (só entradas previstas de consultoria/personal) ──
     if(isPrevisto&&tipo.includes('entrada')){
-      const cc=(row[8]||'').toLowerCase();
+      const cc=(row[C_CC]||'').toLowerCase();
       const isPersonal=cc.includes('personal');
       const isConsultoria=cc.includes('consultoria');
       if(isPersonal||isConsultoria){
-        const val=parseBRNum(row[12])||0;
+        const val=parseBRNum(row[C_VALP])||0;
         if(val){
-          const year=parseInt(row[2]),month=parseInt(row[3]);
+          const year=parseInt(row[C_ANO]),month=parseInt(row[C_MES]);
           if(year&&month){
             const ym=`${year}-${String(month).padStart(2,'0')}`;
             if(!byMonth[ym]) byMonth[ym]={personal:0,consultoria:0,total:0};
@@ -5125,12 +5138,12 @@ function parseBaseDadosFromCSV(arr){
 
     // ── Próximos 7 dias — todas entradas e saídas previstas ──
     if(isPrevisto){
-      const dateObj=parseGSDate(row[0]);
+      const dateObj=parseGSDate(row[C_DATA]);
       if(!dateObj||isNaN(dateObj.getTime())||dateObj<hoje||dateObj>limite) continue;
-      const val=parseBRNum(row[12])||parseBRNum(row[13])||0;
+      const val=parseBRNum(row[C_VALP])||parseBRNum(row[C_VALR])||0;
       if(!val) continue;
-      const cat=row[9]||'';
-      const desc=row[10]||cat;
+      const cat=row[C_CAT]||'';
+      const desc=row[C_DESC]||cat;
       const entry={data:dateObj,desc,cat,valor:Math.abs(val)};
       if(tipo.includes('entrada')) p7Entradas.push(entry);
       else if(tipo.includes('sa')) p7Saidas.push(entry);
@@ -5139,20 +5152,20 @@ function parseBaseDadosFromCSV(arr){
 
   window.baseDadosRecPrev=byMonth;
 
-  // ── Recorrência: usa col 19 "Tipo de conta" (igual ao Excel loadBaseDados) ──
+  // ── Recorrência: usa col Tipo de conta (igual ao Excel loadBaseDados) ──
   const recorrMap={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
-    if(!(row[7]||'').toLowerCase().includes('entrada')) continue;
-    if(!(row[11]||'').toLowerCase().includes('realizado')) continue;
-    const cc=(row[8]||'').toLowerCase();
+    if(!(row[C_TIPO]||'').toLowerCase().includes('entrada')) continue;
+    if(!(row[C_STATUS]||'').toLowerCase().includes('realizado')) continue;
+    const cc=(row[C_CC]||'').toLowerCase();
     if(!cc.includes('personal')&&!cc.includes('consultoria')) continue;
-    const val=parseBRNum(row[13])||0;
+    const val=parseBRNum(row[C_VALR])||0;
     if(!val||val<=0) continue;
     const compDate=parseGSDate(row[1]);
     if(!compDate||isNaN(compDate.getTime())) continue;
     const ym=`${compDate.getFullYear()}-${String(compDate.getMonth()+1).padStart(2,'0')}`;
-    const tipoConta=(row[19]||'').toLowerCase().trim(); // col 19 = Tipo de conta
+    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
     if(!recorrMap[ym]) recorrMap[ym]={recorrente:0,parcelado:0,unica:0,total:0};
     recorrMap[ym].total+=val;
     if(tipoConta.includes('recorrente')) recorrMap[ym].recorrente+=val;
@@ -5165,10 +5178,10 @@ function parseBaseDadosFromCSV(arr){
   const byMonthRec={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
-    const tipo=(row[7]||'').toLowerCase();
-    const status=(row[11]||'').toLowerCase();
+    const tipo=(row[C_TIPO]||'').toLowerCase();
+    const status=(row[C_STATUS]||'').toLowerCase();
     if(!tipo.includes('entrada')||!status.includes('realizado')) continue;
-    const val=parseBRNum(row[13])||parseBRNum(row[14])||0;
+    const val=parseBRNum(row[C_VALR])||0;
     if(!val||val<=0) continue;
     // Usa data de competência (col 1) para agrupar por mês
     const compDate=parseGSDate(row[1]);
@@ -5176,9 +5189,9 @@ function parseBaseDadosFromCSV(arr){
     const year=compDate.getFullYear(),month=compDate.getMonth()+1;
     const ym=`${year}-${String(month).padStart(2,'0')}`;
     if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
-    const cc=(row[8]||'').toLowerCase();
-    const cat=(row[9]||'').toLowerCase();
-    const cli=row[10]||'';
+    const cc=(row[C_CC]||'').toLowerCase();
+    const cat=(row[C_CAT]||'').toLowerCase();
+    const cli=row[C_DESC]||'';
     // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
@@ -5230,9 +5243,9 @@ function parseBaseDadosFromCSV(arr){
   const dividendosByMonth={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
-    if((row[9]||'')!=='Dividendos') continue;
-    if(!(row[11]||'').toLowerCase().includes('realizado')) continue;
-    const val=parseBRNum(row[13])||0;
+    if((row[C_CAT]||'')!=='Dividendos') continue;
+    if(!(row[C_STATUS]||'').toLowerCase().includes('realizado')) continue;
+    const val=parseBRNum(row[C_VALR])||0;
     if(!val) continue;
     const caixaDate=parseGSDate(row[0]);
     if(!caixaDate||isNaN(caixaDate.getTime())) continue;
