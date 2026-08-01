@@ -266,11 +266,29 @@ function renderHistorico(){
     $('form-feedback').insertAdjacentElement('afterend', painel);
   }
   if (!fila.length) { painel.innerHTML = ''; return; }
+  const temPendente = fila.some(i => !i.enviado);
+  const btnReenviar = temPendente
+    ? `<button onclick="reenviarManual()" style="margin-top:8px;font-size:12px;padding:4px 10px">↻ Reenviar pendentes</button>`
+    : '';
   const itens = fila.slice(-10).reverse().map(item=>{
-    const status = item.enviado ? '✓ enviado' : '⏳ pendente (sem internet)';
+    let status;
+    if (item.enviado) {
+      status = '<span style="color:green">✓ enviado</span>';
+    } else if (item.erroEnvio) {
+      status = `<span style="color:#c00" title="${item.erroEnvio}">✗ falhou: ${item.erroEnvio}</span>`;
+    } else {
+      status = '<span style="color:#888">⏳ pendente (sem internet)</span>';
+    }
     return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">${item.payload.descricao || '(sem descrição)'} — R$ ${(item.payload.valorReal || item.payload.valorPrevisto).toFixed(2)} — ${status}</div>`;
   }).join('');
-  painel.innerHTML = '<strong>Últimos lançamentos deste aparelho</strong>' + itens;
+  painel.innerHTML = '<strong>Últimos lançamentos deste aparelho</strong>' + btnReenviar + itens;
+}
+
+async function reenviarManual(){
+  const btn = document.querySelector('#historico-painel button');
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Enviando…'; }
+  await tentarReenviarFila();
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Reenviar pendentes'; }
 }
 
 async function salvarLancamento(){
@@ -338,8 +356,13 @@ async function tentarReenviarFila(){
     try {
       await enviarLancamento(item.payload, item.webAppUrl);
       item.enviado = true;
+      delete item.erroEnvio;
       mudou = true;
-    } catch (e) { /* ainda sem conexão, tenta de novo na próxima */ }
+    } catch (e) {
+      const msg = e.message || String(e);
+      // Só atualiza se o erro mudou (evita re-salvar sem necessidade)
+      if (item.erroEnvio !== msg) { item.erroEnvio = msg; mudou = true; }
+    }
   }
   if (mudou) { salvarFilaLocal(fila); renderHistorico(); }
 }
