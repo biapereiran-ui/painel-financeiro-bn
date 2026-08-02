@@ -1675,7 +1675,7 @@ const DIMS=[
     if(d.runway!=null) rows.push({l:'Caixa mínimo (Runway)',v:d.runway,r:[1,2,3,4],f:x=>x.toFixed(1)+'m'});
     return rows;
   }},
-  {key:'inchaco',label:'Inchaço operacional',inv:true,color:'#993C1D',mFn:(d,bm)=>[{l:'Despesas fixas / Receita',v:d.desp_fixas_pct,r:bm.dfixas,f:pct,inv:true},{l:'Folha / Receita',v:d.folha_pct,r:bm.folha,f:pct,inv:true},{l:'Remuneração sócios / Receita',v:d.rem_pct,r:bm.rem,f:pct,inv:true}]},
+  {key:'inchaco',label:'Inchaço operacional',inv:true,color:'#993C1D',mFn:(d,bm)=>[{l:'Despesas fixas / Receita',v:d.desp_fixas_pct,r:bm.dfixas,f:pct,inv:true},{l:'Remuneração sócios / Receita',v:d.rem_pct,r:bm.rem,f:pct,inv:true}]},
 ];
 function getBM(){return BENCHMARKS[document.getElementById('setor-sel').value];}
 
