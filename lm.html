@@ -5241,6 +5241,7 @@ function parseBaseDadosFromCSV(arr){
     }
   }
   window.vendasByMonth=vendasByMonth;
+  console.log('[DBG-VENTAS] keys=',Object.keys(vendasByMonth),'jul-consult=',vendasByMonth['2026-07']?.consult?.length,'jun-consult=',vendasByMonth['2026-06']?.consult?.length);
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
   const concData={};
   Object.entries(byMonthRec).forEach(([ym,data])=>{
