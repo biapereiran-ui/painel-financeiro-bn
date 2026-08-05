@@ -5211,8 +5211,8 @@ function parseBaseDadosFromCSV(arr){
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
     if(!isPersonal&&!isConsultoria) continue;
-    // Chave de dedup: cliente + data de competência raw (igual para todas as parcelas do mesmo parcelado)
-    const deduKey=`${cli}|${row[1]}`;
+    // Chave de dedup: cliente + mês de competência (todas as parcelas do mesmo parcelado têm o mesmo mês)
+    const deduKey=`${cli}|${ym}`;
     if(!vendaContadaKey[ym]) vendaContadaKey[ym]=new Set();
     const jaContou=vendaContadaKey[ym].has(deduKey);
     const valR=parseBRNum(row[C_VALR])||0;
