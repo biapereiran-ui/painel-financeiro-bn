@@ -5210,6 +5210,7 @@ function parseBaseDadosFromCSV(arr){
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
+    if(ym==='2026-07') console.log('[CLASS-JUL]',{cc,cat,cli,isPersonal,isConsultoria,C_CC,C_CAT,C_DESC,tipoConta});
     if(!isPersonal&&!isConsultoria) continue;
     // Chave de dedup: cliente + mês de competência (todas as parcelas do mesmo parcelado têm o mesmo mês)
     const deduKey=`${cli}|${ym}`;
