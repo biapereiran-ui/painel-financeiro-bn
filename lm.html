@@ -5118,6 +5118,7 @@ function parseBaseDadosFromCSV(arr){
   const C_VALR  =col(['valor_realizado','realizado'],13);
   const C_TPCTA =col(['tipo_de_conta','tipo_conta'],19);
   console.log('[BD CSV] colunas detectadas:',{C_DATA,C_TIPO,C_CAT,C_DESC,C_STATUS,C_VALP});
+  console.log('[BD CSV] arr.length=',arr.length,'header=',arr[0],'row1-tipo=',arr[1]?.[C_TIPO],'row1-col7=',arr[1]?.[7]);
   const byMonth={};
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const limite=new Date(hoje);limite.setDate(limite.getDate()+15);limite.setHours(23,59,59,999);
