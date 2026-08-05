@@ -5215,6 +5215,7 @@ function parseBaseDadosFromCSV(arr){
     const deduKey=`${cli}|${ym}`;
     if(!vendaContadaKey[ym]) vendaContadaKey[ym]=new Set();
     const jaContou=vendaContadaKey[ym].has(deduKey);
+    if(ym==='2026-07') console.log('[DEDUP-DEBUG]',{ym,cli,tipoConta,status,valR:parseBRNum(row[C_VALR])||0,valP:parseBRNum(row[C_VALP])||0,deduKey,jaContou,isPersonal,isConsultoria});
     const valR=parseBRNum(row[C_VALR])||0;
     const valP=parseBRNum(row[C_VALP])||0;
     const val=valR||valP;
