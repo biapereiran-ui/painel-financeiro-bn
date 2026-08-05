@@ -5242,6 +5242,7 @@ function parseBaseDadosFromCSV(arr){
     }
   }
   window.vendasByMonth=vendasByMonth;
+  console.log('[v2] jul-consult=',vendasByMonth['2026-07']?.consult?.length,'keys=',Object.keys(vendasByMonth));
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
   const concData={};
   Object.entries(byMonthRec).forEach(([ym,data])=>{
