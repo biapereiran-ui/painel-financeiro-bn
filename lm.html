@@ -1076,6 +1076,15 @@ body.sb-collapsed.app-active .sb-open{display:flex;}
 </div><!-- /app-view -->
 
 <!-- ═══════════ MODAL: GERAR RELATÓRIO ═══════════ -->
+<div id="modal-vendas" class="rel-modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="rel-modal" style="max-width:480px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 id="modal-vendas-titulo" style="margin-bottom:0"></h3>
+      <button onclick="document.getElementById('modal-vendas').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray);line-height:1">×</button>
+    </div>
+    <div id="modal-vendas-lista"></div>
+  </div>
+</div>
 <div id="modal-relatorio" class="rel-modal-overlay" style="display:none">
   <div class="rel-modal">
     <h3>Gerar Relatório Financeiro</h3>
@@ -4035,7 +4044,7 @@ function renderVCLucroCharts(idx){
 // ══════════════════════════════════════════════
 let kpisSelIdx=0;
 
-function kpiCard(name,val,prevVal,fmtFn,{inv=false,t1=null,t2=null,detail='',unavail=false,noVar=false}={}){
+function kpiCard(name,val,prevVal,fmtFn,{inv=false,t1=null,t2=null,detail='',unavail=false,noVar=false,onclick=''}={}){
   if(unavail) return `<div class="kpi-ext-card unavail"><div class="kpi-ext-name">${name}</div><div class="kpi-ext-val">—</div><div class="kpi-ext-info">Dados indisponíveis</div></div>`;
   const vStr=(val!=null&&val!==0)||val===0?fmtFn(val):'—';
   let varHtml='';
@@ -4059,11 +4068,13 @@ function kpiCard(name,val,prevVal,fmtFn,{inv=false,t1=null,t2=null,detail='',una
     const sc={'green':'#22C55E','yellow':'#F5E5BA','red':'#EF4444'};
     statusHtml=`<div class="kpi-ext-status" style="color:${sc[s]}">● ${sl}</div>`;
   }
-  return `<div class="kpi-ext-card">
+  const clickStyle=onclick?'cursor:pointer;' :'';
+  const clickHint=onclick?`<div style="font-size:10px;color:var(--lgray);margin-top:3px">Ver detalhes →</div>`:'';
+  return `<div class="kpi-ext-card" style="${clickStyle}" ${onclick?`onclick="${onclick}"`:''}">
     <div class="kpi-ext-name">${name}</div>
     <div class="kpi-ext-val">${vStr}</div>
     ${varHtml}${statusHtml}
-    ${detail?`<div class="kpi-ext-info">${detail}</div>`:''}
+    ${detail?`<div class="kpi-ext-info">${detail}</div>`:''}${clickHint}
   </div>`;
 }
 
@@ -4195,8 +4206,8 @@ function renderKPIsTab(idx){
   render('kpis-grp-saude',[
     kpiCard('Ticket Médio Personal',d.ticket_personal||null,p?.ticket_personal||null,brl,{detail:'Por competência · realizados'}),
     kpiCard('Ticket Médio Consultoria',d.ticket_consult||null,p?.ticket_consult||null,brl,{detail:'Por competência · realizados'}),
-    kpiCard('Qtd. Vendas Personal',d.qtd_personal>0?d.qtd_personal:null,p?.qtd_personal>0?p?.qtd_personal:null,v=>v+' vendas',{detail:'Contratos/sessões no mês'}),
-    kpiCard('Qtd. Vendas Consultoria',d.qtd_consult>0?d.qtd_consult:null,p?.qtd_consult>0?p?.qtd_consult:null,v=>v+' vendas',{detail:'Contratos/sessões no mês'}),
+    kpiCard('Qtd. Vendas Personal',d.qtd_personal>0?d.qtd_personal:null,p?.qtd_personal>0?p?.qtd_personal:null,v=>v+' vendas',{detail:'Contratos/sessões no mês',onclick:`showVendasModal('personal','${d.date?`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`:''}')`}),
+    kpiCard('Qtd. Vendas Consultoria',d.qtd_consult>0?d.qtd_consult:null,p?.qtd_consult>0?p?.qtd_consult:null,v=>v+' vendas',{detail:'Contratos/sessões no mês',onclick:`showVendasModal('consult','${d.date?`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`:''}')`}),
   ]);
 
   // ── 6. Estrutura de Receitas ──
@@ -5176,6 +5187,7 @@ function parseBaseDadosFromCSV(arr){
 
   // ── Ticket médio, qtd e concentração por mês (entradas realizadas, data de competência) ──
   const byMonthRec={};
+  const vendasByMonth={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
     const tipo=(row[C_TIPO]||'').toLowerCase();
@@ -5189,18 +5201,36 @@ function parseBaseDadosFromCSV(arr){
     const year=compDate.getFullYear(),month=compDate.getMonth()+1;
     const ym=`${year}-${String(month).padStart(2,'0')}`;
     if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
+    if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
     const cli=row[C_DESC]||'';
+    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
+    const caixaDate=parseGSDate(row[C_DATA]);
+    // Parcelado: conta como venda apenas na primeira parcela (data de caixa = data de competência)
+    const isPrimeiraParcela=!tipoConta.includes('parcelado')||
+      (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month);
     // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
-    if(isPersonal){byMonthRec[ym].personal.val+=val;byMonthRec[ym].personal.qtd++;}
-    else if(isConsultoria){byMonthRec[ym].consult.val+=val;byMonthRec[ym].consult.qtd++;}
+    if(isPersonal){
+      byMonthRec[ym].personal.val+=val;
+      if(isPrimeiraParcela){
+        byMonthRec[ym].personal.qtd++;
+        vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+      }
+    } else if(isConsultoria){
+      byMonthRec[ym].consult.val+=val;
+      if(isPrimeiraParcela){
+        byMonthRec[ym].consult.qtd++;
+        vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+      }
+    }
     if(cli){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+val;}
   }
+  window.vendasByMonth=vendasByMonth;
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
   const concData={};
   Object.entries(byMonthRec).forEach(([ym,data])=>{
@@ -5636,6 +5666,28 @@ async function loadFromGSheets(){
 // RELATÓRIO FINANCEIRO — GERAÇÃO
 // ══════════════════════════════════════════════
 const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxLhme2huHX7Yg7J66JL6_7vqy9mvOk882JHAlsxKS07OyWRlkQzL8b-9agDcWB95p3/exec';
+function showVendasModal(tipo, ym){
+  const data=window.vendasByMonth?.[ym];
+  const vendas=tipo==='personal'?(data?.personal||[]):(data?.consult||[]);
+  const label=tipo==='personal'?'Personal':'Consultoria';
+  const [yr,mo]=ym.split('-');
+  const mesLabel=new Date(+yr,+mo-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  document.getElementById('modal-vendas-titulo').textContent=`Vendas ${label} — ${mesLabel}`;
+  const total=vendas.reduce((s,v)=>s+v.val,0);
+  const tcBadge=tc=>tc.includes('parcelado')?'<span style="font-size:10px;background:#EFF6FF;color:#2563EB;border-radius:4px;padding:1px 5px;margin-left:4px">parcelado</span>':tc.includes('recorrente')?'<span style="font-size:10px;background:#F0FDF4;color:#16A34A;border-radius:4px;padding:1px 5px;margin-left:4px">recorrente</span>':'';
+  const rows=vendas.length?vendas.map(v=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;font-size:13px;font-weight:500;color:var(--dark)">${v.cli}${tcBadge(v.tipoConta)}</div>
+      <span style="font-size:13px;font-weight:600;color:var(--green);white-space:nowrap">${brl(v.val)}</span>
+    </div>`).join('')+`
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;border-top:2px solid var(--border);margin-top:2px">
+      <span>Total (${vendas.length} venda${vendas.length!==1?'s':''})</span>
+      <span style="color:var(--green)">${brl(total)}</span>
+    </div>`
+    :'<div style="padding:1rem 0;font-size:13px;color:var(--lgray);text-align:center">Nenhuma venda encontrada para este mês</div>';
+  document.getElementById('modal-vendas-lista').innerHTML=rows;
+  document.getElementById('modal-vendas').style.display='flex';
+}
 function abrirConfigRelatorio(){
   const sel=document.getElementById('rel-mes-sel');
   sel.innerHTML='';
