@@ -5194,8 +5194,15 @@ function parseBaseDadosFromCSV(arr){
     const row=arr[r];
     const tipo=(row[C_TIPO]||'').toLowerCase();
     const status=(row[C_STATUS]||'').toLowerCase();
-    if(!tipo.includes('entrada')||!status.includes('realizado')) continue;
-    const val=parseBRNum(row[C_VALR])||0;
+    const isRealizado=status.includes('realizado');
+    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
+    const isParcelado=tipoConta.includes('parcelado');
+    // Inclui parcelados Previsto para contagem de vendas (mas não soma o valor)
+    const isPrevParcelado=!isRealizado&&isParcelado&&status.includes('previsto');
+    if(!tipo.includes('entrada')||(!isRealizado&&!isPrevParcelado)) continue;
+    const valR=parseBRNum(row[C_VALR])||0;
+    const valP=parseBRNum(row[C_VALP])||0;
+    const val=valR||valP;
     if(!val||val<=0) continue;
     // Usa data de competência (col 1) para agrupar por mês
     const compDate=parseGSDate(row[1]);
@@ -5207,10 +5214,9 @@ function parseBaseDadosFromCSV(arr){
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
     const cli=row[C_DESC]||'';
-    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
     const caixaDate=parseGSDate(row[C_DATA]);
     // Parcelado: conta como venda apenas na primeira parcela (data de caixa = data de competência)
-    const isPrimeiraParcela=!tipoConta.includes('parcelado')||
+    const isPrimeiraParcela=!isParcelado||
       (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month);
     // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
@@ -5218,19 +5224,20 @@ function parseBaseDadosFromCSV(arr){
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
     if(isPersonal){
-      byMonthRec[ym].personal.val+=val;
+      if(isRealizado) byMonthRec[ym].personal.val+=valR;
       if(isPrimeiraParcela){
         byMonthRec[ym].personal.qtd++;
-        vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+        vendasByMonth[ym].personal.push({cli:cli||'—',val:valR||valP,tipoConta:tipoConta||'única',data:caixaDate,status:isRealizado?'realizado':'previsto'});
       }
+      if(cli&&isRealizado) byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;
     } else if(isConsultoria){
-      byMonthRec[ym].consult.val+=val;
+      if(isRealizado) byMonthRec[ym].consult.val+=valR;
       if(isPrimeiraParcela){
         byMonthRec[ym].consult.qtd++;
-        vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+        vendasByMonth[ym].consult.push({cli:cli||'—',val:valR||valP,tipoConta:tipoConta||'única',data:caixaDate,status:isRealizado?'realizado':'previsto'});
       }
+      if(cli&&isRealizado) byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;
     }
-    if(cli){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+val;}
   }
   window.vendasByMonth=vendasByMonth;
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
@@ -5241,8 +5248,9 @@ function parseBaseDadosFromCSV(arr){
       const m=kpiHistory[kIdx];
       // Conta clientes únicos por tipo (qtd) e usa receita real do DRE (evolucaoFin) para ticket
       const evolM=window.evolucaoFin?.find(e=>e.year===parseInt(ym.slice(0,4))&&e.month===parseInt(ym.slice(5)));
-      const recPersonal=evolM?.personal||0;
-      const recConsult=evolM?.consultoria||0;
+      // Fallback para valores da Base de dados quando evolucaoFin não tem dados do mês
+      const recPersonal=(evolM?.personal)||data.personal.val||0;
+      const recConsult=(evolM?.consultoria)||data.consult.val||0;
       // Conta clientes únicos por tipo
       const uniqueP=new Set(),uniqueC=new Set();
       Object.entries(data.clientes).forEach(([cli])=>{
