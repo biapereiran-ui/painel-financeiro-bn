@@ -5118,7 +5118,6 @@ function parseBaseDadosFromCSV(arr){
   const C_VALR  =col(['valor_realizado','realizado'],13);
   const C_TPCTA =col(['tipo_de_conta','tipo_conta'],19);
   console.log('[BD CSV] colunas detectadas:',{C_DATA,C_TIPO,C_CAT,C_DESC,C_STATUS,C_VALP});
-  console.log('[BD CSV] arr.length=',arr.length,'header=',arr[0],'row1-tipo=',arr[1]?.[C_TIPO],'row1-col7=',arr[1]?.[7]);
   const byMonth={};
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const limite=new Date(hoje);limite.setDate(limite.getDate()+15);limite.setHours(23,59,59,999);
@@ -5200,7 +5199,6 @@ function parseBaseDadosFromCSV(arr){
     const isParcelado=tipoConta.includes('parcelado');
     // Inclui parcelados Previsto para contagem de vendas (mas não soma o valor)
     const isPrevParcelado=!isRealizado&&isParcelado&&status.includes('previsto');
-    if(tipo.includes('entrada')){const _cd=parseGSDate(row[1]);if(_cd&&_cd.getFullYear()===2026&&_cd.getMonth()===6)console.log('[DBG-JUL]',row[C_DESC],'|cat=',row[C_CAT],'|status=',status,'|tipoConta=',tipoConta,'|caixa=',row[0],'|valR=',row[C_VALR],'|valP=',row[C_VALP],'|isPrimeiraParcela=',(!tipoConta.includes('parcelado')||(parseGSDate(row[0])?.getMonth()===6)));}
     if(!tipo.includes('entrada')||(!isRealizado&&!isPrevParcelado)) continue;
     const valR=parseBRNum(row[C_VALR])||0;
     const valP=parseBRNum(row[C_VALP])||0;
@@ -5217,9 +5215,11 @@ function parseBaseDadosFromCSV(arr){
     const cat=(row[C_CAT]||'').toLowerCase();
     const cli=row[C_DESC]||'';
     const caixaDate=parseGSDate(row[C_DATA]);
-    // Parcelado: conta como venda apenas na primeira parcela (data de caixa = data de competência)
+    // Parcelado: primeira parcela identificada pela data de caixa (mesmo mês que comp)
+    // OU pela descrição "(1/N)" — cobre parcelados onde 1ª parcela vence no mês seguinte
     const isPrimeiraParcela=!isParcelado||
-      (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month);
+      (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month)||
+      /\(1\//.test(cli);
     // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
@@ -5242,7 +5242,6 @@ function parseBaseDadosFromCSV(arr){
     }
   }
   window.vendasByMonth=vendasByMonth;
-  console.log('[DBG-VENTAS] keys=',Object.keys(vendasByMonth),'jul-consult=',vendasByMonth['2026-07']?.consult?.length,'jun-consult=',vendasByMonth['2026-06']?.consult?.length);
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
   const concData={};
   Object.entries(byMonthRec).forEach(([ym,data])=>{
