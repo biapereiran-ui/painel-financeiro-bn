@@ -5185,50 +5185,50 @@ function parseBaseDadosFromCSV(arr){
   }
   window.recorrenciaData=recorrMap;
 
-  // ── Ticket médio, qtd e concentração por mês (entradas, data de competência) ──
+  // ── Ticket médio, qtd e concentração por mês (entradas realizadas, data de competência) ──
   const byMonthRec={};
   const vendasByMonth={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
     const tipo=(row[C_TIPO]||'').toLowerCase();
     const status=(row[C_STATUS]||'').toLowerCase();
-    if(!tipo.includes('entrada')) continue;
-    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
-    const isParcelado=tipoConta.includes('parcelado');
-    // Parcelados: aceitar mesmo Previsto (venda contratada); demais: exige Realizado
-    if(!isParcelado&&!status.includes('realizado')) continue;
-    const valR=parseBRNum(row[C_VALR])||0;
-    const valP=parseBRNum(row[C_VALP])||0;
-    const val=valR||valP;
+    if(!tipo.includes('entrada')||!status.includes('realizado')) continue;
+    const val=parseBRNum(row[C_VALR])||0;
     if(!val||val<=0) continue;
+    // Usa data de competência (col 1) para agrupar por mês
     const compDate=parseGSDate(row[1]);
     if(!compDate||isNaN(compDate.getTime())) continue;
     const year=compDate.getFullYear(),month=compDate.getMonth()+1;
     const ym=`${year}-${String(month).padStart(2,'0')}`;
-    const caixaDate=parseGSDate(row[C_DATA]);
-    // Parcelado: conta só primeira parcela — data_caixa no mesmo mês da competência
-    // Se caixaDate não parsear, conta mesmo assim (primeira encontrada nesse mês de competência)
-    if(isParcelado&&caixaDate&&!(caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month)) continue;
+    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
+    if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
-    const cli=(row[C_DESC]||'').trim();
+    const cli=row[C_DESC]||'';
+    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
+    const caixaDate=parseGSDate(row[C_DATA]);
+    // Parcelado: conta como venda apenas na primeira parcela (data de caixa = data de competência)
+    const isPrimeiraParcela=!tipoConta.includes('parcelado')||
+      (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month);
+    // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
-    if(!isPersonal&&!isConsultoria) continue;
-    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
-    if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     if(isPersonal){
-      if(valR>0) byMonthRec[ym].personal.val+=valR;
-      byMonthRec[ym].personal.qtd++;
-      vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      byMonthRec[ym].personal.val+=val;
+      if(isPrimeiraParcela){
+        byMonthRec[ym].personal.qtd++;
+        vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+      }
     } else if(isConsultoria){
-      if(valR>0) byMonthRec[ym].consult.val+=valR;
-      byMonthRec[ym].consult.qtd++;
-      vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      byMonthRec[ym].consult.val+=val;
+      if(isPrimeiraParcela){
+        byMonthRec[ym].consult.qtd++;
+        vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate});
+      }
     }
-    if(cli&&valR>0){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;}
+    if(cli){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+val;}
   }
   window.vendasByMonth=vendasByMonth;
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
