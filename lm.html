@@ -5199,7 +5199,7 @@ function parseBaseDadosFromCSV(arr){
     const isParcelado=tipoConta.includes('parcelado');
     // Inclui parcelados Previsto para contagem de vendas (mas não soma o valor)
     const isPrevParcelado=!isRealizado&&isParcelado&&status.includes('previsto');
-    if(tipo.includes('entrada')&&isParcelado&&!isRealizado){console.log('[DBG-PARC]',row[10],'status=',status,'tipoConta=',tipoConta,'isPrevParcelado=',isPrevParcelado,'valR=',row[C_VALR],'valP=',row[C_VALP],'comp=',row[1]);}
+    if(tipo.includes('entrada')){const _comp=row[1]||'';if(_comp.includes('/07/2026')||_comp.includes('07/2026'))console.log('[DBG-JUL]',row[C_DESC],'|cat=',row[C_CAT],'|status=',status,'|tipo=',tipoConta,'|caixa=',row[C_DATA],'|valR=',row[C_VALR],'|valP=',row[C_VALP]);}
     if(!tipo.includes('entrada')||(!isRealizado&&!isPrevParcelado)) continue;
     const valR=parseBRNum(row[C_VALR])||0;
     const valP=parseBRNum(row[C_VALP])||0;
