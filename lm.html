@@ -5188,49 +5188,56 @@ function parseBaseDadosFromCSV(arr){
   // ── Ticket médio, qtd e concentração por mês (entradas realizadas, data de competência) ──
   const byMonthRec={};
   const vendasByMonth={};
+  // Dedup: cliente+raw_comp evita contar parcelas 2ª/3ª do mesmo parcelado como vendas separadas
+  const vendaContadaKey={};
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
     const tipo=(row[C_TIPO]||'').toLowerCase();
-    const status=(row[C_STATUS]||'').toLowerCase();
     if(!tipo.includes('entrada')) continue;
-    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
-    const isParcelado=tipoConta.includes('parcelado');
-    // Parcelados: contar mesmo se Previsto (venda confirmada, cobrança pendente)
-    // Demais: só contar se Realizado
-    if(!isParcelado&&!status.includes('realizado')) continue;
+    const status=(row[C_STATUS]||'').toLowerCase();
     // Usa data de competência (col 1) para agrupar por mês
     const compDate=parseGSDate(row[1]);
     if(!compDate||isNaN(compDate.getTime())) continue;
     const year=compDate.getFullYear(),month=compDate.getMonth()+1;
-    const caixaDate=parseGSDate(row[C_DATA]);
-    // Parcelado: conta como venda apenas na primeira parcela (data de caixa = mês da competência)
-    const isPrimeiraParcela=!isParcelado||
-      (caixaDate&&caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month);
-    if(!isPrimeiraParcela) continue;
-    const val=parseBRNum(row[C_VALR])||parseBRNum(row[C_VALP])||0;
-    if(!val||val<=0) continue;
     const ym=`${year}-${String(month).padStart(2,'0')}`;
-    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
-    if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
     const cli=row[C_DESC]||'';
-    // cc (Centro de custos) tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
+    const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
+    const caixaDate=parseGSDate(row[C_DATA]);
+    // cc tem prioridade sobre cat para evitar falso-positivo em "Mensal - Treino"
     let isPersonal,isConsultoria;
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
+    if(!isPersonal&&!isConsultoria) continue;
+    // Chave de dedup: cliente + data de competência raw (igual para todas as parcelas do mesmo parcelado)
+    const deduKey=`${cli}|${row[1]}`;
+    if(!vendaContadaKey[ym]) vendaContadaKey[ym]=new Set();
+    const jaContou=vendaContadaKey[ym].has(deduKey);
+    const valR=parseBRNum(row[C_VALR])||0;
+    const valP=parseBRNum(row[C_VALP])||0;
+    const val=valR||valP;
+    if(!val||val<=0) continue;
+    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
+    if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     if(isPersonal){
-      byMonthRec[ym].personal.val+=val;
-      byMonthRec[ym].personal.qtd++;
-      vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      if(valR>0) byMonthRec[ym].personal.val+=valR;
+      if(!jaContou){
+        vendaContadaKey[ym].add(deduKey);
+        byMonthRec[ym].personal.qtd++;
+        vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      }
     } else if(isConsultoria){
-      byMonthRec[ym].consult.val+=val;
-      byMonthRec[ym].consult.qtd++;
-      vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      if(valR>0) byMonthRec[ym].consult.val+=valR;
+      if(!jaContou){
+        vendaContadaKey[ym].add(deduKey);
+        byMonthRec[ym].consult.qtd++;
+        vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
+      }
     }
-    // Concentração: acumula só realizados para não inflar com previsto
-    if(cli&&status.includes('realizado')){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+val;}
+    // Concentração: só realizados
+    if(cli&&valR>0){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;}
   }
   window.vendasByMonth=vendasByMonth;
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
