@@ -5191,22 +5191,24 @@ function parseBaseDadosFromCSV(arr){
   for(let r=1;r<arr.length;r++){
     const row=arr[r];
     const tipo=(row[C_TIPO]||'').toLowerCase();
-    if(!tipo.includes('entrada')) continue;
     const status=(row[C_STATUS]||'').toLowerCase();
-    const isRealizado=status.includes('realizado');
-    // Usa colunas Ano/Mês (já calculadas pela planilha) — evita ambiguidade de formato de data
-    const year=parseInt(row[C_ANO])||0;
-    const month=parseInt(row[C_MES])||0;
-    if(!year||!month) continue;
-    const ym=`${year}-${String(month).padStart(2,'0')}`;
+    if(!tipo.includes('entrada')) continue;
     const tipoConta=(row[C_TPCTA]||'').toLowerCase().trim();
     const isParcelado=tipoConta.includes('parcelado');
-    // Parcelados: contar mesmo se Previsto (venda confirmada); demais: só Realizado
-    if(!isParcelado&&!isRealizado) continue;
+    // Parcelados: aceitar mesmo Previsto (venda contratada); demais: exige Realizado
+    if(!isParcelado&&!status.includes('realizado')) continue;
     const valR=parseBRNum(row[C_VALR])||0;
     const valP=parseBRNum(row[C_VALP])||0;
     const val=valR||valP;
     if(!val||val<=0) continue;
+    const compDate=parseGSDate(row[1]);
+    if(!compDate||isNaN(compDate.getTime())) continue;
+    const year=compDate.getFullYear(),month=compDate.getMonth()+1;
+    const ym=`${year}-${String(month).padStart(2,'0')}`;
+    const caixaDate=parseGSDate(row[C_DATA]);
+    // Parcelado: conta só primeira parcela — data_caixa no mesmo mês da competência
+    // Se caixaDate não parsear, conta mesmo assim (primeira encontrada nesse mês de competência)
+    if(isParcelado&&caixaDate&&!(caixaDate.getFullYear()===year&&caixaDate.getMonth()+1===month)) continue;
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
     const cli=(row[C_DESC]||'').trim();
@@ -5215,24 +5217,18 @@ function parseBaseDadosFromCSV(arr){
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
     if(!isPersonal&&!isConsultoria) continue;
-    // Parcelado: conta só a primeira parcela (data de caixa no mesmo mês da competência)
-    if(isParcelado){
-      const caixaDate=parseGSDate(row[C_DATA]);
-      if(!caixaDate||caixaDate.getFullYear()!==year||caixaDate.getMonth()+1!==month) continue;
-    }
-    const caixaDate=parseGSDate(row[C_DATA]);
     if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
     if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     if(isPersonal){
-      if(isRealizado&&valR>0) byMonthRec[ym].personal.val+=valR;
+      if(valR>0) byMonthRec[ym].personal.val+=valR;
       byMonthRec[ym].personal.qtd++;
       vendasByMonth[ym].personal.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
     } else if(isConsultoria){
-      if(isRealizado&&valR>0) byMonthRec[ym].consult.val+=valR;
+      if(valR>0) byMonthRec[ym].consult.val+=valR;
       byMonthRec[ym].consult.qtd++;
       vendasByMonth[ym].consult.push({cli:cli||'—',val,tipoConta:tipoConta||'única',data:caixaDate,status});
     }
-    if(cli&&isRealizado&&valR>0){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;}
+    if(cli&&valR>0){byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;}
   }
   window.vendasByMonth=vendasByMonth;
   // Enriquece kpiHistory com ticket/qtd e popula concentracaoData
