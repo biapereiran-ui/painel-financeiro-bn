@@ -1745,8 +1745,8 @@ function loadISF(wb){
 
   // Build month buttons for Faturamento and Caixa tabs (single-select)
   const lastIdx=months.length-1;
-  const _cmKpiIdx=months.findIndex(d=>d.date&&`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
-  const defKpiIdx=_cmKpiIdx>=0?_cmKpiIdx:lastIdx;
+  const _latestWithData=months.reduce((best,m,i)=>(m.receita>0?i:best),-1);
+  const defKpiIdx=_latestWithData>=0?_latestWithData:lastIdx;
   fatSelIdx=defKpiIdx; caixaSelIdx=defKpiIdx;
   buildPeriodBtns('fat-month-btns',months,
     (i)=>{fatSelIdx=i;renderFaturamento(i);},
@@ -5209,7 +5209,7 @@ function parseBaseDadosFromCSV(arr){
     if(!compDate||isNaN(compDate.getTime())) continue;
     const year=compDate.getFullYear(),month=compDate.getMonth()+1;
     const ym=`${year}-${String(month).padStart(2,'0')}`;
-    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0},consult:{val:0,qtd:0},clientes:{}};
+    if(!byMonthRec[ym]) byMonthRec[ym]={personal:{val:0,qtd:0,totalVendas:0},consult:{val:0,qtd:0,totalVendas:0},clientes:{}};
     if(!vendasByMonth[ym]) vendasByMonth[ym]={personal:[],consult:[]};
     const cc=(row[C_CC]||'').toLowerCase();
     const cat=(row[C_CAT]||'').toLowerCase();
@@ -5225,10 +5225,15 @@ function parseBaseDadosFromCSV(arr){
     if(cc.includes('consultoria')){isConsultoria=true;isPersonal=false;}
     else if(cc.includes('personal')){isPersonal=true;isConsultoria=false;}
     else{isPersonal=cat.includes('personal')||cat.includes('treino');isConsultoria=cat.includes('consultoria');}
+    // Valor total da venda: para parcelado extrai N de "(1/N)" e multiplica; lump sum usa val direto
+    const nMatch=cli.match(/\(1\/(\d+)\)/);
+    const nParcelas=nMatch?parseInt(nMatch[1]):1;
+    const totalVendaVal=(valR||valP)*nParcelas;
     if(isPersonal){
       if(isRealizado) byMonthRec[ym].personal.val+=valR;
       if(isPrimeiraParcela){
         byMonthRec[ym].personal.qtd++;
+        byMonthRec[ym].personal.totalVendas+=totalVendaVal;
         vendasByMonth[ym].personal.push({cli:cli||'—',val:valR||valP,tipoConta:tipoConta||'única',data:caixaDate,status:isRealizado?'realizado':'previsto'});
       }
       if(cli&&isRealizado) byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;
@@ -5236,6 +5241,7 @@ function parseBaseDadosFromCSV(arr){
       if(isRealizado) byMonthRec[ym].consult.val+=valR;
       if(isPrimeiraParcela){
         byMonthRec[ym].consult.qtd++;
+        byMonthRec[ym].consult.totalVendas+=totalVendaVal;
         vendasByMonth[ym].consult.push({cli:cli||'—',val:valR||valP,tipoConta:tipoConta||'única',data:caixaDate,status:isRealizado?'realizado':'previsto'});
       }
       if(cli&&isRealizado) byMonthRec[ym].clientes[cli]=(byMonthRec[ym].clientes[cli]||0)+valR;
@@ -5248,21 +5254,12 @@ function parseBaseDadosFromCSV(arr){
     const kIdx=kpiHistory.findIndex(k=>k.date&&`${k.date.getFullYear()}-${String(k.date.getMonth()+1).padStart(2,'0')}`===ym);
     if(kIdx>=0){
       const m=kpiHistory[kIdx];
-      // Conta clientes únicos por tipo (qtd) e usa receita real do DRE (evolucaoFin) para ticket
-      const evolM=window.evolucaoFin?.find(e=>e.year===parseInt(ym.slice(0,4))&&e.month===parseInt(ym.slice(5)));
-      // Fallback para valores da Base de dados quando evolucaoFin não tem dados do mês
-      const recPersonal=(evolM?.personal)||data.personal.val||0;
-      const recConsult=(evolM?.consultoria)||data.consult.val||0;
-      // Conta clientes únicos por tipo
-      const uniqueP=new Set(),uniqueC=new Set();
-      Object.entries(data.clientes).forEach(([cli])=>{
-        const cc=(byMonthRec[ym]?.personal?.qtd||0)>0;// placeholder
-      });
       m.qtd_personal=data.personal.qtd;
       m.qtd_consult=data.consult.qtd;
-      // Ticket = receita real / qtd único (alinha com DRE)
-      m.ticket_personal=m.qtd_personal>0?recPersonal/m.qtd_personal:0;
-      m.ticket_consult=m.qtd_consult>0?recConsult/m.qtd_consult:0;
+      // Ticket = valor total dos contratos fechados no mês / qtd vendas
+      // Para parcelados usa valor total (parcela × N), não apenas a parcela do mês
+      m.ticket_personal=m.qtd_personal>0?data.personal.totalVendas/m.qtd_personal:0;
+      m.ticket_consult=m.qtd_consult>0?data.consult.totalVendas/m.qtd_consult:0;
     }
     // Concentração: maior cliente pelo valor realizado
     const total=Object.values(data.clientes).reduce((s,v)=>s+v,0);
@@ -5576,8 +5573,8 @@ async function loadFromGSheets(){
 
     if(kpiHistory.length>0){
       const kpiLastIdx=kpiHistory.length-1;
-      const _cmKpiIdx=kpiHistory.findIndex(d=>d.date&&`${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`===_nowYM);
-      const defKpiIdx=_cmKpiIdx>=0?_cmKpiIdx:kpiLastIdx;
+      const _latestWithData=kpiHistory.reduce((best,m,i)=>(m.receita>0?i:best),-1);
+      const defKpiIdx=_latestWithData>=0?_latestWithData:kpiLastIdx;
 
       // Caixa — cross-ref caixaMonths → kpiHistory por mês/ano (igual loadDREGerencial)
       const cxMths=window.caixaMonths&&window.caixaMonths.length?window.caixaMonths:kpiHistory;
