@@ -4501,9 +4501,10 @@ function renderVCMinhaMeta(){
     const hoje2=new Date();hoje2.setHours(23,59,59,999);
     const realizados2=kpiHistory.filter(m=>m.date&&m.date<=hoje2&&m.receita>0);
     // Mês fechado (antes do mês atual): usa faturamento do próprio mês selecionado
+    const dSel=kpiHistory[vcSelIdx];
     const primeiroDiaMesAtual=new Date(hoje2.getFullYear(),hoje2.getMonth(),1);
-    const mesFechado=d?.date&&d.date<primeiroDiaMesAtual;
-    const fatAtual=mesFechado?d.receita:(realizados2.length?realizados2[realizados2.length-1].receita:0);
+    const mesFechado=dSel?.date&&dSel.date<primeiroDiaMesAtual;
+    const fatAtual=mesFechado?dSel.receita:(realizados2.length?realizados2[realizados2.length-1].receita:0);
     const ant2=realizados2.slice(0,-1);
     const l3=ant2.slice(-3);
     const a3=l3.length?l3.reduce((s,m)=>s+m.receita,0)/l3.length:mm.fatMed;
