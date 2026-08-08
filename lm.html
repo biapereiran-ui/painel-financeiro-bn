@@ -3737,11 +3737,11 @@ function renderVCReceitas(idx){
   // Mix Personal / Consultoria — usa evolucaoFin como fonte verdade (mesma origem do DRE)
   const getEv=kd=>{if(!kd?.date)return null;return(window.evolucaoFin||[]).find(e=>e.year===kd.date.getFullYear()&&e.month===kd.date.getMonth()+1)||null;};
   const evD=getEv(d), evP=getEv(p);
-  const revP=evD?.personal??d.ticket_personal*d.qtd_personal;
-  const revC=evD?.consultoria??d.ticket_consult*d.qtd_consult;
+  const revP=evD?.personal||d.rec_personal||0;
+  const revC=evD?.consultoria||d.rec_consult||0;
   const revMix=revP+revC;
-  const prevRevP=evP?.personal??p?.ticket_personal*p?.qtd_personal??0;
-  const prevRevC=evP?.consultoria??p?.ticket_consult*p?.qtd_consult??0;
+  const prevRevP=evP?.personal||p?.rec_personal||0;
+  const prevRevC=evP?.consultoria||p?.rec_consult||0;
   const prevRevMix=prevRevP+prevRevC;
   // Recorrência
   const rec=window.recorrenciaData?.[ym], recPrev=window.recorrenciaData?.[ymP];
@@ -3778,7 +3778,8 @@ function renderVCReceitas(idx){
 
 function renderVCReceitasCharts(idx){
   const d=kpiHistory[idx];
-  const revP=d.ticket_personal*d.qtd_personal, revC=d.ticket_consult*d.qtd_consult;
+  const evDC=d?.date?(window.evolucaoFin||[]).find(e=>e.year===d.date.getFullYear()&&e.month===d.date.getMonth()+1)||null:null;
+  const revP=evDC?.personal||d.rec_personal||0, revC=evDC?.consultoria||d.rec_consult||0;
   const totalMix=revP+revC;
   // Donut Personal vs Consultoria
   if(chartVcRecDonut){chartVcRecDonut.destroy();chartVcRecDonut=null;}
@@ -3804,8 +3805,8 @@ function renderVCReceitasCharts(idx){
   const evData=window.evolucaoFin||[];
   const getEv=kd=>{if(!kd?.date)return null;return evData.find(e=>e.year===kd.date.getFullYear()&&e.month===kd.date.getMonth()+1)||null;};
   const lbls=last6.map(m=>m.label);
-  const pData=last6.map(m=>{const ev=getEv(m);return ev?ev.personal||0:m.ticket_personal*m.qtd_personal;});
-  const cData=last6.map(m=>{const ev=getEv(m);return ev?ev.consultoria||0:m.ticket_consult*m.qtd_consult;});
+  const pData=last6.map(m=>{const ev=getEv(m);return ev?.personal||m.rec_personal||0;});
+  const cData=last6.map(m=>{const ev=getEv(m);return ev?.consultoria||m.rec_consult||0;});
   if(chartVcRecBar){chartVcRecBar.destroy();chartVcRecBar=null;}
   const cb=document.getElementById('vc-ch-recorr');
   if(cb) chartVcRecBar=new Chart(cb,{type:'bar',
@@ -3949,23 +3950,21 @@ function renderVCLucro(idx){
   const badgeMSeg=vcLevel(d.margem_seg,.30,.15,.05);
   const badgeGap=vcLevel(Math.abs(gapQual??99),.05,.10,.18,true);
   // Cards
-  // LLD e FCL via DRE Gerencial (linhas 47 e 49)
-  const getDreVal=(dreRow)=>{
-    if(!dreAllRows.length||!d?.date)return null;
+  // LLD e FCL via DRE Gerencial — usa DRE_IDX (índice no array dreAllRows, por label)
+  const getDreVal=(dreIdx)=>{
+    if(!dreAllRows.length||!d?.date||dreIdx<0)return null;
     const mIdx=dreMonths.findIndex(m=>m.date&&m.date.getFullYear()===d.date.getFullYear()&&m.date.getMonth()===d.date.getMonth());
     if(mIdx<0)return null;
-    const row=dreAllRows.find(r=>r.r===dreRow);
-    return row?row.vals[mIdx]?.val??null:null;
+    return dreAllRows[dreIdx]?.vals[mIdx]?.val??null;
   };
-  const getDreValP=(dreRow)=>{
-    if(!p?.date)return null;
+  const getDreValP=(dreIdx)=>{
+    if(!p?.date||dreIdx<0)return null;
     const mIdx=dreMonths.findIndex(m=>m.date&&m.date.getFullYear()===p.date.getFullYear()&&m.date.getMonth()===p.date.getMonth());
     if(mIdx<0)return null;
-    const row=dreAllRows.find(r=>r.r===dreRow);
-    return row?row.vals[mIdx]?.val??null:null;
+    return dreAllRows[dreIdx]?.vals[mIdx]?.val??null;
   };
-  const lld=getDreVal(47), lldP=getDreValP(47);
-  const fcl=getDreVal(49)??d.fcl_abs, fclP=getDreValP(49)??p?.fcl_abs;
+  const lld=getDreVal(DRE_IDX.lld)??null, lldP=getDreValP(DRE_IDX.lld)??null;
+  const fcl=getDreVal(DRE_IDX.fcl)??d.fcl_abs, fclP=getDreValP(DRE_IDX.fcl)??p?.fcl_abs;
   const lldPct=d.receita>0&&lld!=null?lld/d.receita:null;
   const fclPct=d.receita>0&&fcl!=null?fcl/d.receita:null;
   const lldPctP=p?.receita>0&&lldP!=null?lldP/p.receita:null;
@@ -4501,7 +4500,10 @@ function renderVCMinhaMeta(){
   if(cenEl){
     const hoje2=new Date();hoje2.setHours(23,59,59,999);
     const realizados2=kpiHistory.filter(m=>m.date&&m.date<=hoje2&&m.receita>0);
-    const fatAtual=realizados2.length?realizados2[realizados2.length-1].receita:0;
+    // Mês fechado (antes do mês atual): usa faturamento do próprio mês selecionado
+    const primeiroDiaMesAtual=new Date(hoje2.getFullYear(),hoje2.getMonth(),1);
+    const mesFechado=d?.date&&d.date<primeiroDiaMesAtual;
+    const fatAtual=mesFechado?d.receita:(realizados2.length?realizados2[realizados2.length-1].receita:0);
     const ant2=realizados2.slice(0,-1);
     const l3=ant2.slice(-3);
     const a3=l3.length?l3.reduce((s,m)=>s+m.receita,0)/l3.length:mm.fatMed;
@@ -5256,6 +5258,9 @@ function parseBaseDadosFromCSV(arr){
       const m=kpiHistory[kIdx];
       m.qtd_personal=data.personal.qtd;
       m.qtd_consult=data.consult.qtd;
+      // Receita mensal realizada (parcelas do mês, não valor total do contrato) — usado na Estrutura de Receitas
+      m.rec_personal=data.personal.val;
+      m.rec_consult=data.consult.val;
       // Ticket = valor total dos contratos fechados no mês / qtd vendas
       // Para parcelados usa valor total (parcela × N), não apenas a parcela do mês
       m.ticket_personal=m.qtd_personal>0?data.personal.totalVendas/m.qtd_personal:0;
