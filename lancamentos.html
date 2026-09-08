@@ -85,11 +85,11 @@ button.secundario{background:var(--border);color:var(--dark);margin-top:8px;}
       <select id="f-conta-destino"></select>
     </div>
 
+    <label for="f-centro">Centro de custos</label>
+    <select id="f-centro" onchange="onCentroChange()"></select>
+
     <label for="f-categoria">Categoria</label>
     <select id="f-categoria"></select>
-
-    <label for="f-centro">Centro de custos</label>
-    <select id="f-centro"></select>
 
     <label for="f-descricao">Descrição</label>
     <input id="f-descricao" type="text">
@@ -151,6 +151,21 @@ button.secundario{background:var(--border);color:var(--dark);margin-top:8px;}
 </div>
 
 <script>
+// ── Mapeamento Centro de custos → Categorias (LM) ───────────────
+const LM_CC_CATEGORIAS = {
+  'Receita - Personal': ['Personal'],
+  'Receita - Consultoria': ['Mensal - Treino','Mensal - Dieta','Mensal - Treino e Dieta','Trimestral - Treino','Trimestral - Dieta','Trimestral - Treino e Dieta','Semestral - Treino','Semestral - Dieta','Semestral - Treino e Dieta','Consulta','Anual - Treino','Anual - Dieta','Anual - Treino e Dieta'],
+  'Deduções': ['Taxa da adquirente - Stone','Taxa da adquirente - Prime','Taxa da adquirente - Asaas','Impostos e contribuições','Estornos'],
+  'Administrativo': ['Taxas','Licenças','Softwares','Assinaturas','Transporte','Honorários Contábeis','Internet','Materiais','Gestão Financeira','Outras despesas administrativas'],
+  'Marketing': ['Produção de material','Captação de material','Tráfego','Social media','Outras despesas comerciais'],
+  'Operacional': ['CMV/CPV'],
+  'Financeiro': ['Rendimentos','Aporte de capital','Tarifas bancárias','IOF','Saque','Juros de cheque especial','Antecipação de recebíveis','Investimentos','Outras despesas não operacionais','Dividendos'],
+  'Remuneração dos sócios': ['Pro-labore','INSS'],
+  'LM Consultoria x Marisol Goulart': ['Receita - Projetos','Outras receitas','Taxa da adquirente - Asaas','Impostos e contribuições','Estornos','Softwares','Assinaturas','Internet','Materiais','Despesa com pessoal','Pagamento do parceiro','Outras despesas administrativas','Saque','Antecipação de recebíveis','Investimentos'],
+  'LM Consultoria x Wendel': ['Receita - Projetos','Outras receitas','Taxa da adquirente - Asaas','Impostos e contribuições','Estornos','Softwares','Assinaturas','Internet','Materiais','Despesa com pessoal','Pagamento do parceiro','Outras despesas administrativas','Saque','Antecipação de recebíveis','Investimentos'],
+  'Outros': ['Outras receitas','Projetos','Transferência interna','Pagamento de fatura - Cartão']
+};
+
 // ── Configuração de clientes ─────────────────────────────────────
 // Adicionar um cliente novo: somar uma entrada aqui (nome, URL do Web
 // App depois de implantado, ID da planilha, listas de Conta/Centro).
@@ -160,7 +175,7 @@ const CLIENTES = {
     webAppUrl: 'https://script.google.com/macros/s/AKfycbwAH3tj4rqlcxRAmIH2QMb_RN4ZR0_YsxEJI6Lq57gDhcwXo08lxctr3BOpxrYHxNny/exec',
     sheetId: '1m3Wu5kFV6bp2ZVpVVDk_7UyXhyf8jDivq_2Airc15mU',
     contas: ['Inter','Stone','Prime','Asaas','Caixa interno','Contabilizei','Aplicação','CC - Inter'],
-    centros: ['Receita - Personal','Receita - Consultoria','Deduções','Administrativo','Marketing','Operacional','Financeiro','Remuneração dos sócios','Outros'],
+    centros: ['Receita - Personal','Receita - Consultoria','Deduções','Administrativo','Marketing','Operacional','Financeiro','Remuneração dos sócios','LM Consultoria x Marisol Goulart','LM Consultoria x Wendel','Outros'],
     categoriaCol: 'A' // Dados iniciais coluna A = Categoria (LM)
   },
   bl: {
@@ -382,6 +397,13 @@ window.addEventListener('DOMContentLoaded', ()=>{
   tentarReenviarFila();
 });
 
+function onCentroChange(){
+  if (clienteAtual !== 'lm') return;
+  const cc = $('f-centro').value;
+  const cats = LM_CC_CATEGORIAS[cc] || [];
+  preencherSelect('f-categoria', cats);
+}
+
 function onTipoChange(){
   $('cond-conta-destino').classList.toggle('ativa', $('f-tipo').value === 'Transferência');
 }
@@ -421,14 +443,20 @@ async function montarFormulario(chave){
   preencherSelect('f-conta', cli.contas);
   preencherSelect('f-conta-destino', cli.contas);
 
-  const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
-  preencherSelect('f-categoria', categorias);
-
   if (cli.centros) {
     preencherSelect('f-centro', cli.centros);
+    // Para LM: categorias dependem do CC selecionado
+    if (chave === 'lm') {
+      onCentroChange();
+    } else {
+      const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
+      preencherSelect('f-categoria', categorias);
+    }
   } else {
     const centros = await buscarColunaDadosIniciais(cli.sheetId, cli.centroCol);
     preencherSelect('f-centro', centros);
+    const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
+    preencherSelect('f-categoria', categorias);
   }
 }
 
