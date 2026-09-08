@@ -1526,7 +1526,9 @@ let DRE_IDX={};
 function buildDreIndex(){
   const find=(re)=>dreAllRows.findIndex(r=>re.test(String(r.label||'').trim()));
   DRE_IDX={
-    receita: find(/^\(\+\)\s*receita bruta/i),
+    receita:       find(/^\(\+\)\s*receita bruta/i),
+    recConsultoria:find(/receita.*consultoria/i),
+    recPersonal:   find(/receita.*personal/i),
     ded:     find(/^\(-\)\s*deduç/i),
     mc:      find(/margem de contribuição/i),
     adm:     find(/^\(-\)\s*despesas administrativas/i),
@@ -3737,11 +3739,11 @@ function renderVCReceitas(idx){
   // Mix Personal / Consultoria — usa evolucaoFin como fonte verdade (mesma origem do DRE)
   const getEv=kd=>{if(!kd?.date)return null;return(window.evolucaoFin||[]).find(e=>e.year===kd.date.getFullYear()&&e.month===kd.date.getMonth()+1)||null;};
   const evD=getEv(d), evP=getEv(p);
-  const revP=evD?.personal||d.rec_personal||0;
-  const revC=evD?.consultoria||d.rec_consult||0;
+  const revP=evD?.personal||d.rec_personal||d.rec_personal_dre||0;
+  const revC=evD?.consultoria||d.rec_consult||d.rec_consult_dre||0;
   const revMix=revP+revC;
-  const prevRevP=evP?.personal||p?.rec_personal||0;
-  const prevRevC=evP?.consultoria||p?.rec_consult||0;
+  const prevRevP=evP?.personal||p?.rec_personal||p?.rec_personal_dre||0;
+  const prevRevC=evP?.consultoria||p?.rec_consult||p?.rec_consult_dre||0;
   const prevRevMix=prevRevP+prevRevC;
   // Recorrência
   const rec=window.recorrenciaData?.[ym], recPrev=window.recorrenciaData?.[ymP];
@@ -3779,7 +3781,7 @@ function renderVCReceitas(idx){
 function renderVCReceitasCharts(idx){
   const d=kpiHistory[idx];
   const evDC=d?.date?(window.evolucaoFin||[]).find(e=>e.year===d.date.getFullYear()&&e.month===d.date.getMonth()+1)||null:null;
-  const revP=evDC?.personal||d.rec_personal||0, revC=evDC?.consultoria||d.rec_consult||0;
+  const revP=evDC?.personal||d.rec_personal||d.rec_personal_dre||0, revC=evDC?.consultoria||d.rec_consult||d.rec_consult_dre||0;
   const totalMix=revP+revC;
   // Donut Personal vs Consultoria
   if(chartVcRecDonut){chartVcRecDonut.destroy();chartVcRecDonut=null;}
@@ -3805,8 +3807,8 @@ function renderVCReceitasCharts(idx){
   const evData=window.evolucaoFin||[];
   const getEv=kd=>{if(!kd?.date)return null;return evData.find(e=>e.year===kd.date.getFullYear()&&e.month===kd.date.getMonth()+1)||null;};
   const lbls=last6.map(m=>m.label);
-  const pData=last6.map(m=>{const ev=getEv(m);return ev?.personal||m.rec_personal||0;});
-  const cData=last6.map(m=>{const ev=getEv(m);return ev?.consultoria||m.rec_consult||0;});
+  const pData=last6.map(m=>{const ev=getEv(m);return ev?.personal||m.rec_personal||m.rec_personal_dre||0;});
+  const cData=last6.map(m=>{const ev=getEv(m);return ev?.consultoria||m.rec_consult||m.rec_consult_dre||0;});
   if(chartVcRecBar){chartVcRecBar.destroy();chartVcRecBar=null;}
   const cb=document.getElementById('vc-ch-recorr');
   if(cb) chartVcRecBar=new Chart(cb,{type:'bar',
@@ -4524,8 +4526,9 @@ function renderVCMinhaMeta(){
     const pMeta=Math.min(cMeta/escala,1)*100;
     const pAtual=Math.min(fatAtual/escala,1)*100;
     // Cor da barra acompanha o marco em que o resultado se encontra
-    const barCor=fatAtual>=cRef?'#C9A84C'              // acima da ref → champagne
-               :(cMin&&fatAtual>=cMin)?'#0A3D2E'       // acima do mín, abaixo da ref → verde
+    const barCor=fatAtual>=cMeta?'#C9A84C'             // atingiu Sua Meta → champagne
+               :fatAtual>=cRef?'#0A3D2E'               // atingiu Meta Ref → verde escuro
+               :(cMin&&fatAtual>=cMin)?'#0F6B50'        // acima do mín → verde médio
                :'#A40000';                              // abaixo do mínimo → vermelho
     cenEl.innerHTML=`<div class="plan-block-title" style="margin-bottom:.75rem;">Cenários de Faturamento</div>
       <div class="plan-cards" style="margin-bottom:1rem;">
@@ -5044,7 +5047,9 @@ function buildKpiHistoryFromDRE(){
       fcl_pct,gcPct:fcl_pct,ebitda_pct,ll_pct,desp_fixas_pct,folha_pct,rem_pct,
       ql_val,margem_seg,idx_pe,pe_abs:pe_val||0,efi_op,rigidez,
       burnRate:fcl<0?Math.abs(fcl):0,rl:receita+ded,
-      ticket_personal:0,ticket_consult:0,qtd_personal:0,qtd_consult:0};
+      ticket_personal:0,ticket_consult:0,qtd_personal:0,qtd_consult:0,
+      rec_personal_dre:g(DRE_IDX.recPersonal)||0,
+      rec_consult_dre:g(DRE_IDX.recConsultoria)||0};
   });
   // Enriquece com conv_caixa e runway usando caixaContas (igual ao loadISF do Excel)
   kpiHistory.forEach((m,i)=>{
