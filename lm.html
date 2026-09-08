@@ -115,6 +115,17 @@ select option{background:#1a2a3a;color:#fff;}
 
 /* ── DRE TABLE ── */
 .dre-wrap{overflow-x:auto;}
+#dre-compare-panel{display:none;flex-wrap:wrap;gap:8px 16px;padding:10px 14px;margin-bottom:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;}
+#dre-compare-panel.ativa{display:flex;}
+#dre-compare-panel label{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;white-space:nowrap;color:var(--dark);}
+#dre-compare-panel input[type=checkbox]{width:14px;height:14px;accent-color:var(--brand);cursor:pointer;}
+#dre-tooltip{position:fixed;background:#1C2329;color:#fff;border-radius:10px;padding:10px 14px;font-size:12px;pointer-events:none;z-index:9999;display:none;max-width:290px;min-width:180px;box-shadow:0 6px 20px rgba(0,0,0,.3);}
+#dre-tooltip .tt-title{font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;}
+#dre-tooltip .tt-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08);}
+#dre-tooltip .tt-row:last-child{border-bottom:none;}
+#dre-tooltip .tt-desc{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#dre-tooltip .tt-val{font-weight:600;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.dre-table tr[data-cat]:hover td{background:rgba(15,107,80,.05);cursor:default;}
 .dre-table{width:100%;border-collapse:collapse;font-size:12.5px;}
 .dre-table th{background:var(--brand-l);color:var(--brand-d);padding:7px 12px;text-align:right;font-weight:600;font-size:11px;white-space:nowrap;}
 .dre-table th:first-child{text-align:left;}
@@ -635,8 +646,12 @@ body.sb-collapsed.app-active .sb-open{display:flex;}
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
         <p class="sec" style="margin-bottom:0;">Demonstrativo de Resultados Gerencial</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="dre-month-btns"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="dre-month-btns"></div>
+          <button onclick="toggleDreCompare()" style="font-size:12px;padding:5px 12px;background:var(--brand-l);color:var(--brand-d);border:1px solid var(--brand);border-radius:6px;cursor:pointer;font-weight:600;white-space:nowrap;">⊕ Comparar</button>
+        </div>
       </div>
+      <div id="dre-compare-panel"></div>
       <div class="dre-wrap">
         <table class="dre-table" id="dre-table">
           <thead><tr id="dre-head"></tr></thead>
@@ -645,6 +660,7 @@ body.sb-collapsed.app-active .sb-open{display:flex;}
       </div>
     </div>
   </div>
+  <div id="dre-tooltip"><div class="tt-title"></div></div>
 
   <!-- ── ABA: FATURAMENTO ── -->
   <div id="tab-fat" class="tab-content">
@@ -1519,6 +1535,58 @@ const DRE_TYPES={
 let dreMonths=[];
 let dreAllRows=[];
 let dreSelMonths=new Set();
+let dreCompareMonths=new Set();
+
+function toggleDreCompare(){
+  const p=document.getElementById('dre-compare-panel');
+  if(!p) return;
+  const show=!p.classList.contains('ativa');
+  p.classList.toggle('ativa',show);
+  if(show) buildDreComparePanel();
+}
+
+function buildDreComparePanel(){
+  const p=document.getElementById('dre-compare-panel');
+  if(!p) return;
+  const baseIdxs=dreSelMonths;
+  p.innerHTML='<span style="font-size:11px;font-weight:600;color:var(--gray);align-self:center;">Adicionar ao lado:</span>';
+  dreMonths.forEach((m,i)=>{
+    if(baseIdxs.has(i)) return;
+    const lbl=document.createElement('label');
+    const cb=document.createElement('input');
+    cb.type='checkbox'; cb.checked=dreCompareMonths.has(i);
+    cb.onchange=()=>{dreCompareMonths[cb.checked?'add':'delete'](i);renderDRE();};
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(' '+m.label));
+    p.appendChild(lbl);
+  });
+}
+
+function showDreTooltip(e){
+  const cat=e.currentTarget.dataset.cat;
+  const entries=(window.dreTooltipDespesas||{})[cat]||[];
+  const selYms=new Set([...dreSelMonths,...dreCompareMonths].map(i=>{
+    const m=dreMonths[i];if(!m?.date) return null;
+    return m.date.getFullYear()+'-'+String(m.date.getMonth()+1).padStart(2,'0');
+  }).filter(Boolean));
+  const byDesc={};
+  entries.forEach(({ym,desc,val})=>{if(selYms.has(ym)) byDesc[desc]=(byDesc[desc]||0)+val;});
+  const sorted=Object.entries(byDesc).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length) return;
+  const top=sorted.slice(0,8), rest=sorted.slice(8);
+  const tt=document.getElementById('dre-tooltip');
+  let html=`<div class="tt-title">${cat}</div>`;
+  top.forEach(([d,v])=>{html+=`<div class="tt-row"><span class="tt-desc">${d}</span><span class="tt-val">${brl(Math.abs(v))}</span></div>`;});
+  if(rest.length){const rv=rest.reduce((s,[,v])=>s+v,0);html+=`<div class="tt-row" style="opacity:.55"><span class="tt-desc">+${rest.length} outros</span><span class="tt-val">${brl(Math.abs(rv))}</span></div>`;}
+  tt.innerHTML=html; tt.style.display='block'; moveDreTooltip(e);
+}
+function moveDreTooltip(e){
+  const tt=document.getElementById('dre-tooltip');
+  const x=e.clientX+16, y=e.clientY-10;
+  tt.style.left=Math.min(x,window.innerWidth-tt.offsetWidth-12)+'px';
+  tt.style.top=Math.max(8,y)+'px';
+}
+function hideDreTooltip(){document.getElementById('dre-tooltip').style.display='none';}
 let DRE_IDX={};
 
 // Localiza o índice de cada linha-chave da DRE pelo RÓTULO (não pela posição),
@@ -1567,10 +1635,11 @@ function loadDREGerencial(wb){
     dreAllRows.push({r,label,vals,type:DRE_TYPES[r]||'child'});
   }
   buildDreIndex();
+  buildDreComparePanel();
   // Build month buttons — DRE (multi-select: todos os meses ativos por padrão)
   buildPeriodBtns('dre-month-btns',dreMonths,
-    (i)=>{dreSelMonths=new Set([i]);renderDRE();},
-    (idxs)=>{dreSelMonths=new Set(idxs);renderDRE();}
+    (i)=>{dreSelMonths=new Set([i]);buildDreComparePanel();renderDRE();},
+    (idxs)=>{dreSelMonths=new Set(idxs);buildDreComparePanel();renderDRE();}
   );
   dreSelMonths=new Set(dreMonths.map((_,i)=>i));
   const _dreWrap=document.getElementById('dre-month-btns');
@@ -1600,20 +1669,26 @@ function loadDREGerencial(wb){
 }
 
 function renderDRE(){
-  const selIdx=[...dreSelMonths].sort((a,b)=>a-b);
+  const selIdx=[...new Set([...dreSelMonths,...dreCompareMonths])].sort((a,b)=>a-b);
   const head=document.getElementById('dre-head');
   const body=document.getElementById('dre-body');
   const hasRef=dreAllRows.some(row=>row.ref!=null&&row.ref!==0);
   head.innerHTML='<th>Descrição</th>';
   if(hasRef) head.innerHTML+='<th class="av" style="color:#F5E5BA;min-width:52px;">% Ref.</th>';
-  selIdx.forEach(i=>{ head.innerHTML+=`<th>${dreMonths[i].label}</th><th class="av">AV%</th>`; });
+  selIdx.forEach(i=>{
+    const isBase=dreSelMonths.has(i);
+    const style=isBase?'':' style="opacity:.75"';
+    head.innerHTML+=`<th${style}>${dreMonths[i].label}</th><th class="av"${style}>AV%</th>`;
+  });
   body.innerHTML='';
   dreAllRows.forEach(row=>{
     if(!row.label&&row.label!==0) return;
     const isNeg=String(row.label).startsWith('(-)');
     const type=row.type||'child';
     const cls=type==='result'?'result-row':type==='ebitda'?'ebitda-row':type==='header'?'header-row':type==='child'?'child-row':'';
-    let tr=`<tr class="${cls}"><td>${row.label}</td>`;
+    const isExpense=type==='child'&&isNeg===false&&!String(row.label).startsWith('(');
+    const catAttr=isExpense?` data-cat="${String(row.label).replace(/"/g,'&quot;')}"`: '';
+    let tr=`<tr class="${cls}"${catAttr}><td>${row.label}</td>`;
     if(hasRef){
       const refVal=row.ref!=null&&row.ref!==0?pct(row.ref):'';
       tr+=`<td class="av" style="color:#F5E5BA;font-weight:600;">${refVal}</td>`;
@@ -1627,6 +1702,12 @@ function renderDRE(){
     });
     tr+='</tr>';
     body.innerHTML+=tr;
+  });
+  // Tooltip listeners para linhas de despesa
+  document.querySelectorAll('#dre-body tr[data-cat]').forEach(tr=>{
+    tr.addEventListener('mouseenter',showDreTooltip);
+    tr.addEventListener('mousemove',moveDreTooltip);
+    tr.addEventListener('mouseleave',hideDreTooltip);
   });
 }
 
@@ -5016,6 +5097,7 @@ function parseDREFromCSV(arr){
     dreAllRows.push({r:r-hRow+3,label,vals,type}); // r=4 para primeira linha (igual Excel)
   }
   buildDreIndex();
+  buildDreComparePanel();
   console.log('[GS] dreAllRows=',dreAllRows.length,'primeiro label=',dreAllRows[0]?.label,'DRE_IDX=',DRE_IDX);
 }
 
@@ -5303,6 +5385,25 @@ function parseBaseDadosFromCSV(arr){
     dividendosByMonth[ym]=(dividendosByMonth[ym]||0)+Math.abs(val);
   }
   window.dividendosByMonth=dividendosByMonth;
+
+  // ── Tooltip DRE: saídas realizadas por categoria → {[cat]: [{ym, desc, val}]} ──
+  const tooltipDespesas={};
+  for(let r=1;r<arr.length;r++){
+    const row=arr[r];
+    if(!(row[C_TIPO]||'').toLowerCase().includes('sa')) continue;
+    if(!(row[C_STATUS]||'').toLowerCase().includes('realizado')) continue;
+    const cat=row[C_CAT]||'';
+    if(!cat) continue;
+    const val=parseBRNum(row[C_VALR])||0;
+    if(!val) continue;
+    const caixaDate=parseGSDate(row[C_DATA]);
+    if(!caixaDate||isNaN(caixaDate.getTime())) continue;
+    const ym=`${caixaDate.getFullYear()}-${String(caixaDate.getMonth()+1).padStart(2,'0')}`;
+    const desc=row[C_DESC]||cat;
+    if(!tooltipDespesas[cat]) tooltipDespesas[cat]=[];
+    tooltipDespesas[cat].push({ym,desc,val:-Math.abs(val)});
+  }
+  window.dreTooltipDespesas=tooltipDespesas;
 }
 
 // ── Dividendos — aba Relatório, coluna J (índice 9), linha 5 (índice 4) ──
@@ -5577,8 +5678,8 @@ async function loadFromGSheets(){
     }
 
     buildPeriodBtns('dre-month-btns',dreMonths,
-      (i)=>{dreSelMonths=new Set([i]);if(typeof renderDRE==='function')renderDRE();},
-      (idxs)=>{dreSelMonths=new Set(idxs);if(typeof renderDRE==='function')renderDRE();}
+      (i)=>{dreSelMonths=new Set([i]);buildDreComparePanel();if(typeof renderDRE==='function')renderDRE();},
+      (idxs)=>{dreSelMonths=new Set(idxs);buildDreComparePanel();if(typeof renderDRE==='function')renderDRE();}
     );
     dreSelMonths=new Set(dreMonths.map((_,i)=>i));
 
@@ -5622,8 +5723,8 @@ async function loadFromGSheets(){
         registerPeriodSection(dreMonths,generateInsights,(idxs)=>generateInsights(idxs[idxs.length-1]));
       }
       registerPeriodSection(dreMonths,
-        (i)=>{dreSelMonths=new Set([i]);if(typeof renderDRE==='function')renderDRE();},
-        (idxs)=>{dreSelMonths=new Set(idxs);if(typeof renderDRE==='function')renderDRE();}
+        (i)=>{dreSelMonths=new Set([i]);buildDreComparePanel();if(typeof renderDRE==='function')renderDRE();},
+        (idxs)=>{dreSelMonths=new Set(idxs);buildDreComparePanel();if(typeof renderDRE==='function')renderDRE();}
       );
       registerPeriodSection(kpiHistory,
         (i)=>{fatSelIdx=i;if(typeof renderFaturamento==='function')renderFaturamento(i);},
