@@ -166,6 +166,27 @@ const LM_CC_CATEGORIAS = {
   'Outros': ['Outras receitas','Projetos','Transferência interna','Pagamento de fatura - Cartão']
 };
 
+// ── Mapeamento Centro de custos → Categorias (BL) ───────────────
+const BL_CC_CATEGORIAS = {
+  'Agregadores': ['TotalPass','Wellhub'],
+  'Receita': ['Débito','Crédito','Pix','Antecipação de recebíveis','Dinheiro'],
+  'Financeiro': ['Rendimentos','Juros de cheque especial','Juros de antecipação de recebíveis','IOF','Tarifa pix','Tarifas bancárias','Juros por atraso de pagamento'],
+  'Administrativo': ['Aluguel','Honorários Contábeis','Internet','Material administrativo','Softwares e assinaturas','Taxas administrativas','Endomarketing','DCC','Taxa da adquirente','Taxa de recebimento de pix','Simples Nacional','Recepção','Benefícios - Recepção','Taxas e licenças'],
+  'Remuneração dos sócios': ['Pro labores','Dividendos'],
+  'Operacional': ['Consumíveis','Energia elétrica','Professores - Salão','Professores - Coletivas','Conservação','Estagiários','Manutenção de equipamentos','Manutenção de estrutura','Material operacional'],
+  'Vendas': ['CPV'],
+  'Encargos sobre folha': ['FGTS','INSS'],
+  'Férias sobre folha': ['Férias'],
+  '13° salários': ['13° salários'],
+  'Avaliações físicas': ['Avaliações físicas'],
+  'Comercial': ['Brindes','Comissões'],
+  'Marketing': ['Social media','Produção de conteúdo e material de divulgação','Tráfego'],
+  'Dívidas': ['Empréstimos','Acordos e parcelamentos antigos'],
+  'Investimentos': ['TI','Aparelhos de musculação','Equipamentos','Infraestrutura'],
+  'Movimentação entre contas': ['Transferência interna'],
+  'Outros': ['Outros']
+};
+
 // ── Configuração de clientes ─────────────────────────────────────
 // Adicionar um cliente novo: somar uma entrada aqui (nome, URL do Web
 // App depois de implantado, ID da planilha, listas de Conta/Centro).
@@ -183,9 +204,7 @@ const CLIENTES = {
     webAppUrl: 'https://script.google.com/macros/s/AKfycbxsi3CplO-2ewDQvrLs6KE0rGQJB7Kes3xiBGjX5RJ8ntqyzOGrE_6HDl-luMa1HJ8q/exec',
     sheetId: '1r2AXCvdMHRo1tTELpE8JLzDhCrK4rhqs7PXupsU_29I',
     contas: ['Itaú','Bradesco','Caixa interno'],
-    centros: null, // BL usa faixa de "Dados iniciais" (coluna A), buscada ao vivo
-    categoriaCol: 'B', // Dados iniciais coluna B = Categoria (BL — invertido em relação à LM)
-    centroCol: 'A' // Dados iniciais coluna A = Centro de custos (BL)
+    centros: Object.keys(BL_CC_CATEGORIAS)
   }
 };
 
@@ -398,10 +417,10 @@ window.addEventListener('DOMContentLoaded', ()=>{
 });
 
 function onCentroChange(){
-  if (clienteAtual !== 'lm') return;
+  const mapa = clienteAtual === 'lm' ? LM_CC_CATEGORIAS : clienteAtual === 'bl' ? BL_CC_CATEGORIAS : null;
+  if (!mapa) return;
   const cc = $('f-centro').value;
-  const cats = LM_CC_CATEGORIAS[cc] || [];
-  preencherSelect('f-categoria', cats);
+  preencherSelect('f-categoria', mapa[cc] || []);
 }
 
 function onTipoChange(){
@@ -443,21 +462,8 @@ async function montarFormulario(chave){
   preencherSelect('f-conta', cli.contas);
   preencherSelect('f-conta-destino', cli.contas);
 
-  if (cli.centros) {
-    preencherSelect('f-centro', cli.centros);
-    // Para LM: categorias dependem do CC selecionado
-    if (chave === 'lm') {
-      onCentroChange();
-    } else {
-      const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
-      preencherSelect('f-categoria', categorias);
-    }
-  } else {
-    const centros = await buscarColunaDadosIniciais(cli.sheetId, cli.centroCol);
-    preencherSelect('f-centro', centros);
-    const categorias = await buscarColunaDadosIniciais(cli.sheetId, cli.categoriaCol);
-    preencherSelect('f-categoria', categorias);
-  }
+  preencherSelect('f-centro', cli.centros);
+  onCentroChange();
 }
 
 // ── Envio ────────────────────────────────────────────────────────
